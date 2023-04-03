@@ -12,7 +12,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   Future<List<dynamic>> fetchData() async {
     final response =
-    await http.get(Uri.parse("http://182.219.226.49/api/data"));
+    await http.get(Uri.parse("http://182.219.226.49/moms/ccyyhh"));
 
     if (response.statusCode == 200) {
       var jsonData = jsonDecode(response.body);
@@ -37,8 +37,8 @@ class _MyAppState extends State<MyApp> {
                   itemCount: snapshot.data!.length,
                   itemBuilder: (context, index) {
                     return ListTile(
-                      title: Text(snapshot.data![index]['NAME']),
-                      trailing: Text(snapshot.data![index]['NUM'].toString()),
+                      title: Text(snapshot.data![index]['AGE'].toString()),
+                      trailing: Text(snapshot.data![index]['CMT'].toString()),
                     );
                   });
             } else if (snapshot.hasError) {
