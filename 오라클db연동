@@ -10,6 +10,27 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _commentController = TextEditingController();
+
+  Future<void> sendData() async {
+    final uri = Uri.parse('http://182.219.226.49/moms/ccyyhh/register');
+    final headers = {'Content-Type': 'application/json'};
+    final age = _ageController.text;
+    final comment = _commentController.text;
+    final body = jsonEncode({'age': age, 'cmt': comment});
+    final response = await http.post(uri, headers: headers, body: body);
+    if (response.statusCode == 200) {
+      print('Data saved successfully');
+      _ageController.clear();
+      _commentController.clear();
+      setState(() {});
+    } else {
+      throw Exception('Failed to save data');
+    }
+  }
+
   Future<List<dynamic>> fetchData() async {
     final response =
     await http.get(Uri.parse("http://182.219.226.49/moms/ccyyhh"));
@@ -27,26 +48,48 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: Text("Data from OracleDB"),
+          title: Text("Dat2a from OracleDB"),
         ),
-        body: FutureBuilder<List<dynamic>>(
-          future: fetchData(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return ListView.builder(
-                  itemCount: snapshot.data!.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(snapshot.data![index]['AGE'].toString()),
-                      trailing: Text(snapshot.data![index]['CMT'].toString()),
-                    );
-                  });
-            } else if (snapshot.hasError) {
-              return Text('${snapshot.error}');
-            }
-            // By default, show a loading spinner.
-            return const CircularProgressIndicator();
-          },
+        body: Column(
+          children: [
+            TextField(
+              controller: _ageController,
+              decoration: InputDecoration(
+                hintText: 'Enter Age',
+              ),
+            ),
+            TextField(
+              controller: _commentController,
+              decoration: InputDecoration(
+                hintText: 'Enter Comment',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: sendData,
+              child: Text('Submit'),
+            ),
+            FutureBuilder<List<dynamic>>(
+              future: fetchData(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Expanded(
+                    child: ListView.builder(
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text(snapshot.data![index]['AGE'].toString()),
+                            trailing: Text(snapshot.data![index]['CMT'].toString()),
+                          );
+                        }),
+                  );
+                } else if (snapshot.hasError) {
+                  return Text('${snapshot.error}');
+                }
+                // By default, show a loading spinner.
+                return const CircularProgressIndicator();
+              },
+            ),
+          ],
         ),
       ),
     );
