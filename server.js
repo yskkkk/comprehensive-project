@@ -2,6 +2,15 @@ const express = require('express');
 const { json } = require('express');
 const OracleDB = require('oracledb');
 const crypto = require('crypto');
+const now = new Date();
+const year = now.getFullYear().toString().padStart(4, '0');
+const month = (now.getMonth() + 1).toString().padStart(2, '0');
+const day = now.getDate().toString().padStart(2, '0');
+const hours = now.getHours().toString().padStart(2, '0');
+const minutes = now.getMinutes().toString().padStart(2, '0');
+const seconds = now.getSeconds().toString().padStart(2, '0');
+const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
 const app = express();
 
 const port = 8090;
@@ -115,6 +124,8 @@ app.post('/moms/ccyyhh/register', async (req, res) => {
 
     console.log(`Client IP: ${ip} `+`(으)로부터 데이터 삽입`);
     console.log(`${JSON.stringify(req.body)}`);
+    console.log(`${now.getFullYear()}-${month}-${day} ${hour}:${minute}:${second}\n`);
+
 
     res.status(200).send(`Inserted ${result.rowsAffected} row(s)`);
   } catch (err) {
@@ -144,6 +155,7 @@ app.post('/moms/register', async (req, res) => {
 
     console.log(`Client IP: ${ip} `+`의 회원가입`);
     console.log(`${JSON.stringify(req.body)}`);
+    console.log(formattedTime+`\n`);
 
     res.status(200).send(`Inserted ${result.rowsAffected} row(s)`);
   } catch (err) {
@@ -174,6 +186,7 @@ app.post('/moms/login', async (req, res) => {
       );
       if (login.rows.length > 0) {
         console.log(`로그인 성공 : ${JSON.stringify(req.body)}`);
+        console.log(formattedTime+`\n`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const logininfo = {
           success: true,
@@ -188,12 +201,14 @@ app.post('/moms/login', async (req, res) => {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         const logininfo = { success: false };
         console.log(`비밀번호가 틀렸습니다.`);
+        console.log(formattedTime+`\n`);
         res.end(JSON.stringify(logininfo));
       }
     } else {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       const logininfo = { success: false };
-      console.log(`로그인 실패 : 아이디가 존재하지 않습니다.`);
+      console.log(`존재하지 않는 아이디 입니다.`);
+      console.log(formattedTime+`\n`);
       res.end(JSON.stringify(logininfo));
     }
     await connection.release();
