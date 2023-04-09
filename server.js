@@ -3,14 +3,7 @@ const { json } = require('express');
 const OracleDB = require('oracledb');
 const crypto = require('crypto');
 const fs = require('fs');
-const now = new Date();
-const year = now.getFullYear().toString().padStart(4, '0');
-const month = (now.getMonth() + 1).toString().padStart(2, '0');
-const day = now.getDate().toString().padStart(2, '0');
-const hours = now.getHours().toString().padStart(2, '0');
-const minutes = now.getMinutes().toString().padStart(2, '0');
-const seconds = now.getSeconds().toString().padStart(2, '0');
-const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
 
 const logFilePath = 'server_logs.txt';
 
@@ -29,6 +22,13 @@ app.use(express.json());
 
 app.get('/moms/ccyyhh', async (req, res) => {
   try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+
      const ip = req.connection.remoteAddress; //client ip
     // Connect to the database
     const connection = await OracleDB.getConnection(dbConfig);
@@ -62,6 +62,12 @@ app.get('/moms/ccyyhh', async (req, res) => {
 
 app.get('/moms/register-info', async (req, res) => {
   try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
     const ip = req.connection.remoteAddress;
     // Connect to the database
     const connection = await OracleDB.getConnection(dbConfig);
@@ -98,6 +104,13 @@ app.get('/moms/register-info', async (req, res) => {
 app.get('/moms/yysskk', async (req, res) => {
   try {
     // Connect to the database
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+
     const connection = await OracleDB.getConnection(dbConfig);
 
     const result = await connection.execute(
@@ -126,6 +139,13 @@ app.get('/moms/yysskk', async (req, res) => {
 
 app.post('/moms/ccyyhh/register', async (req, res) => {
   try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+
     const { age, cmt } = req.body;
     const ccyyhh = req.url.split('/').pop();
     const ip = req.connection.remoteAddress; //client ip
@@ -153,6 +173,13 @@ app.post('/moms/ccyyhh/register', async (req, res) => {
 // 회원가입 요청
 app.post('/moms/register', async (req, res) => {
   try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+
     const { id, pw, name, phone, email } = req.body;
     const register = req.url.split('/').pop();
     const ip = req.connection.remoteAddress; //client ip
@@ -192,6 +219,13 @@ app.post('/moms/register', async (req, res) => {
 //로그인 
 app.post('/moms/login', async (req, res) => {
   try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+
     const { id, pw } = req.body;
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
@@ -259,6 +293,13 @@ app.post('/moms/login', async (req, res) => {
 //아이디 찾기
 app.post('/moms/find-id', async (req, res) => {
   try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+
     const { email } = req.body;
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
@@ -306,6 +347,13 @@ app.post('/moms/find-id', async (req, res) => {
 //비밀번호 수정
 app.post('/moms/change-pw', async (req, res) => {
   try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    
     const { email , pw} = req.body;
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
