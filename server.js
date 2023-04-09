@@ -2,6 +2,7 @@ const express = require('express');
 const { json } = require('express');
 const OracleDB = require('oracledb');
 const crypto = require('crypto');
+const fs = require('fs');
 const now = new Date();
 const year = now.getFullYear().toString().padStart(4, '0');
 const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -10,6 +11,8 @@ const hours = now.getHours().toString().padStart(2, '0');
 const minutes = now.getMinutes().toString().padStart(2, '0');
 const seconds = now.getSeconds().toString().padStart(2, '0');
 const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+const logFilePath = 'server_logs.txt';
 
 const app = express();
 
@@ -26,6 +29,7 @@ app.use(express.json());
 
 app.get('/moms/ccyyhh', async (req, res) => {
   try {
+     const ip = req.connection.remoteAddress; //client ip
     // Connect to the database
     const connection = await OracleDB.getConnection(dbConfig);
 
@@ -45,14 +49,20 @@ app.get('/moms/ccyyhh', async (req, res) => {
       jsonData.push(obj);
     }
     res.send(jsonData);
+  
+  const log = `/moms/ccyyhh ->[ ${ip} ] ccyyhh 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
   }
 });
 
-app.get('/moms/register-info/', async (req, res) => {
+app.get('/moms/register-info', async (req, res) => {
   try {
+    const ip = req.connection.remoteAddress;
     // Connect to the database
     const connection = await OracleDB.getConnection(dbConfig);
 
@@ -72,7 +82,14 @@ app.get('/moms/register-info/', async (req, res) => {
       jsonData.push(obj);
     }
     res.send(jsonData);
-  } catch (err) {
+    
+    const log = `/moms/register-info ->[ ${ip} ] register 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+}
+   catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
   }
@@ -122,12 +139,11 @@ app.post('/moms/ccyyhh/register', async (req, res) => {
     };
     const result = await connection.execute(sql, bindParams, { autoCommit: true });
 
-    console.log(`Client IP: ${ip} `+`(으)로부터 데이터 삽입`);
-    console.log(`${JSON.stringify(req.body)}`);
-    console.log(`${now.getFullYear()}-${month}-${day} ${hour}:${minute}:${second}\n`);
-
-
-    res.status(200).send(`Inserted ${result.rowsAffected} row(s)`);
+    const log = `/moms/ccyyhh/register ->[ ${ip} ] age-cmt 삽입 ${JSON.stringify(req.body)} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+    fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Internal Server Error');
@@ -153,14 +169,23 @@ app.post('/moms/register', async (req, res) => {
     };
     const result = await connection.execute(sql, bindParams, { autoCommit: true });
 
-    console.log(`Client IP: ${ip} `+`의 회원가입`);
-    console.log(`${JSON.stringify(req.body)}`);
-    console.log(formattedTime+`\n`);
-
     res.status(200).send(`Inserted ${result.rowsAffected} row(s)`);
-  } catch (err) {
+  
+    const log =`/moms/register ->[ ${ip} ] 회원가입 요청 ${JSON.stringify(req.body)} -> [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+     fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+  } 
+   catch (err) {
     console.error(err.message);
     res.status(500).send('Internal Server Error');
+    const log =`/moms/register ->[ ${ip} ] 회원가입 요청 ${JSON.stringify(req.body)} -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+    fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+  
   }
 });
 
@@ -171,8 +196,11 @@ app.post('/moms/login', async (req, res) => {
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
     
-    console.log(`로그인 요청 : ${ip}`);
-    console.log(`${JSON.stringify(req.body)}`);
+    const log = `/moms/login ->[ ${ip} ] 로그인 요청 ${JSON.stringify(req.body)}`
+    fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
 
     const result = await connection.execute(
       `SELECT id, pw FROM register WHERE id = :id`,
@@ -184,9 +212,7 @@ app.post('/moms/login', async (req, res) => {
         `SELECT * FROM register WHERE id = :id and pw = :pw`,
         [id, crypto.createHash('md5').update(pw).digest('hex')]
       );
-      if (login.rows.length > 0) {
-        console.log(`로그인 성공 : ${JSON.stringify(req.body)}`);
-        console.log(formattedTime+`\n`);
+      
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const logininfo = {
           success: true,
@@ -197,18 +223,30 @@ app.post('/moms/login', async (req, res) => {
           email: login.rows[0][5]
         };
         res.end(JSON.stringify(logininfo));
+        if (login.rows.length > 0) {
+          const log = ` -> [성공] ${logininfo['id']}님 접속 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+          fs.appendFile(logFilePath, log, (err) => {
+          if (err) throw err;
+          console.log(log); // 로그를 콘솔에 출력
+        });
       } else {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         const logininfo = { success: false };
-        console.log(`비밀번호가 틀렸습니다.`);
-        console.log(formattedTime+`\n`);
+        const log = ` -> [실패] 잘못된 비밀번호 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+        fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
         res.end(JSON.stringify(logininfo));
       }
     } else {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       const logininfo = { success: false };
-      console.log(`존재하지 않는 아이디 입니다.`);
-      console.log(formattedTime+`\n`);
+      const log = ` -> [실패] 존재하지 않는 아이디 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+        fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
       res.end(JSON.stringify(logininfo));
     }
     await connection.release();
@@ -217,6 +255,123 @@ app.post('/moms/login', async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+
+//아이디 찾기
+app.post('/moms/find-id', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const ip = req.connection.remoteAddress;
+    const connection = await OracleDB.getConnection(dbConfig);
+    
+    const log = `/moms/find-id ->[ ${ip} ] 아이디 찾기 요청 ${JSON.stringify(req.body)}`
+    fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+
+    const result = await connection.execute(
+      `SELECT id FROM register WHERE email = :email`,
+      [email]
+    );
+
+    if (result.rows.length > 0) {
+     
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        const logininfo = {
+          success: true,
+          id: result.rows[0][0]
+        };
+        res.end(JSON.stringify(logininfo));
+          const log = ` -> [성공] ${logininfo['id']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+          fs.appendFile(logFilePath, log, (err) => {
+          if (err) throw err;
+          console.log(log); // 로그를 콘솔에 출력
+        });
+    } else {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      const logininfo = { success: false };
+      const log = ` -> [실패] 존재하지 않는 이메일 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+        fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      res.end(JSON.stringify(logininfo));
+    }
+    await connection.release();
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+//비밀번호 수정
+app.post('/moms/change-pw', async (req, res) => {
+  try {
+    const { email , pw} = req.body;
+    const ip = req.connection.remoteAddress;
+    const connection = await OracleDB.getConnection(dbConfig);
+    
+    const log = `/moms/change-pw ->[ ${ip} ] 비밀번호 변경 요청 ${JSON.stringify(req.body)}`
+    fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+
+  const checkemail = await connection.execute(
+    `SELECT clientnum FROM register WHERE email = :email`,
+    [email]
+  );
+    if (checkemail.rows.length > 0 && pw) {
+      const sql = `UPDATE register SET pw = :pw where email= :email`;
+      const bindParams = {
+        pw: crypto.createHash('md5').update(pw).digest('hex'),
+        email: email
+      };
+      const result = await connection.execute(sql, bindParams, { autoCommit: true });
+      console.log(result.sql);
+      if (result.rowsAffected >0){
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        const info = {
+          success: true,
+          pw: 'change success'
+        };
+        res.end(JSON.stringify(info));
+          const log = ` -> [성공] ${info['pw']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+          fs.appendFile(logFilePath, log, (err) => {
+          if (err) throw err;
+          console.log(log); // 로그를 콘솔에 출력
+        });
+      }
+      else{
+
+      }
+    }
+    else if(!pw){
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      const info = { success: false };
+      const log = ` -> [실패] pw값이 비어있습니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+        fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      res.end(JSON.stringify(info));
+    }
+    else {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      const info = { success: false };
+      const log = ` -> [실패] 존재하지 않는 이메일 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+        fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      res.end(JSON.stringify(info));
+    }
+    await connection.release();
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
