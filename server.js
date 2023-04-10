@@ -3,7 +3,7 @@ const { json } = require('express');
 const OracleDB = require('oracledb');
 const crypto = require('crypto');
 const multer  = require('multer');
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: 'uploads/image/' });
 const fs = require('fs');
 
 
@@ -429,7 +429,7 @@ app.post('/moms/change-pw', async (req, res) => {
   }
 });
 //사진 업로드
-app.post('/upload', upload.array('images', 10), async (req, res) => {
+app.post('/upload/images', upload.array('images', 10), async (req, res) => {
   try {
     const ip = req.connection.remoteAddress;
     const now = new Date();
@@ -439,9 +439,9 @@ app.post('/upload', upload.array('images', 10), async (req, res) => {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const files = req.files;
-
+    const fileNames = req.files.map(file => file.originalname);
     if (!files) {
-      const log = `/upload -> [ ${ip} ] -> [실패] 이미지 없음 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      const log = `/upload/images -> [ ${ip} ] -> [실패] 이미지 없음 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
       fs.appendFile(logFilePath, log, (err) => {
         if (err) throw err;
         console.log(log); // 로그를 콘솔에 출력
@@ -449,8 +449,8 @@ app.post('/upload', upload.array('images', 10), async (req, res) => {
       res.status(400).send('No file uploaded.');
       return;
     }
-
-    const log = `/upload -> [ ${ip} ] -> [성공] 이미지 업로드 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+  
+    const log = `/upload/images -> [ ${ip} ] -> [성공] 이미지 업로드 ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
       console.log(log); // 로그를 콘솔에 출력
@@ -466,7 +466,7 @@ app.post('/upload', upload.array('images', 10), async (req, res) => {
 
     if(result.rowsAffected>0)
     {
-      const fileNames = req.files.map(file => file.originalname);
+
       const log = `/upload -> [ ${ip} ] -> [성공] 경로 저장 성공 : ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
       fs.appendFile(logFilePath, log, (err) => {
         if (err) throw err;
@@ -481,7 +481,19 @@ app.post('/upload', upload.array('images', 10), async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
-
+//이미지 불러오기
+app.get('/image/:path', (req, res) => {
+  const imagePath = 'uploads/image/' + req.params.path;
+  
+  fs.readFile(imagePath, (err, data) => {
+    if (err) {
+      res.status(404).send('Not Found');
+    } else {
+      res.writeHead(200, {'Content-Type': 'image/jpeg'});
+      res.end(data);
+    }
+  });
+});
   
 
 app.listen(port, () => {
