@@ -2,6 +2,8 @@ const express = require('express');
 const { json } = require('express');
 const OracleDB = require('oracledb');
 const crypto = require('crypto');
+const multer  = require('multer');
+const upload = multer({ dest: 'uploads/' });
 const fs = require('fs');
 
 
@@ -16,6 +18,13 @@ const dbConfig = {
   password: 'tomtom',
   connectString: 'localhost:1521/XE',
 };
+
+OracleDB.createPool({
+  user: dbConfig.user,
+  password: dbConfig.password,
+  connectString: dbConfig.connectString,
+  poolAlias: "default"
+});
 
 // Middleware to parse JSON request body
 app.use(express.json());
@@ -419,7 +428,61 @@ app.post('/moms/change-pw', async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+//사진 업로드
+app.post('/upload', upload.array('images', 10), async (req, res) => {
+  try {
+    const ip = req.connection.remoteAddress;
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const files = req.files;
 
+    if (!files) {
+      const log = `/upload -> [ ${ip} ] -> [실패] 이미지 없음 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      res.status(400).send('No file uploaded.');
+      return;
+    }
+
+    const log = `/upload -> [ ${ip} ] -> [성공] 이미지 업로드 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+
+    const filePaths = files.map(file => file.path);
+    
+    const sql = `INSERT INTO image_path (path) VALUES (:path)`;
+    const binds = filePaths.map(filePath => ({ path: filePath }));
+    const options = { autoCommit: true };
+    const connection = await OracleDB.getConnection();
+    const result = await connection.executeMany(sql, binds, options);
+
+    if(result.rowsAffected>0)
+    {
+      const fileNames = req.files.map(file => file.originalname);
+      const log = `/upload -> [ ${ip} ] -> [성공] 경로 저장 성공 : ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+    }
+    connection.close();
+    res.status(200).send(`${files.length} files uploaded!`);
+  
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+  
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
