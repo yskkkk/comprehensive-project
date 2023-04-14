@@ -570,7 +570,6 @@ app.post('/moms/sendemail/auth', (req, res) => {
     const info = {
       success: false,
     };
-    res.end(JSON.stringify(info));
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
       console.log(log); // 로그를 콘솔에 출력
