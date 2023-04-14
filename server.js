@@ -466,28 +466,29 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
 //이미지 불러오기 ex) http://182.219.226.49/image/image_name
 app.get('/image/:path', (req, res) => {
   const ip = req.connection.remoteAddress;
-    const now = new Date();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
+  const now = new Date();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const seconds = now.getSeconds().toString().padStart(2, '0');
   const imagePath = 'uploads/image/' + req.params.path;
-  let log =`/image/${imagePath} -> [ ${ip} ] 이미지 요청 -> `;
+  let log = `/image/${imagePath} -> [ ${ip} ] 이미지 요청 -> `;
+
   fs.readFile(imagePath, (err, data) => {
     if (err) {
-      log += `[ ${imagePath} ] [실패] 존재하지 않는 이미지 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += `[실패] 존재하지 않는 이미지 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
       res.status(404).send('Not Found');
     } else {
-      log += `[ ${imagePath} ] [성공] 이미지 접근 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
       res.writeHead(200, {'Content-Type': 'image/jpeg'});
       res.end(data);
     }
-  });
-  
-  fs.appendFile(logFilePath, log, (err) => {
-    if (err) throw err;
-    console.log(log); // 로그를 콘솔에 출력
+
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
   });
 });
   
