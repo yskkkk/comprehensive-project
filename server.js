@@ -64,7 +64,7 @@ app.get('/moms/ccyyhh', async (req, res) => {
     }
     res.send(jsonData);
   
-  let log = `/moms/ccyyhh ->[ ${ip} ] ccyyhh 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+  let log = `/moms/ccyyhh ->[ ${ip} ] ccyyhh 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
   fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
     console.log(log); // 로그를 콘솔에 출력
@@ -103,7 +103,7 @@ app.get('/moms/register-info', async (req, res) => {
     }
     res.send(jsonData);
     
-  let log = `/moms/register-info ->[ ${ip} ] register 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+  let log = `/moms/register-info ->[ ${ip} ] register 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
 }
    catch (err) {
     console.error(err.message);
@@ -173,7 +173,7 @@ app.post('/moms/ccyyhh/register', async (req, res) => {
     };
     const result = await connection.execute(sql, bindParams, { autoCommit: true });
 
-    let log = `/moms/ccyyhh/register ->[ ${ip} ] age-cmt 삽입 ${JSON.stringify(req.body)} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+    let log = `/moms/ccyyhh/register ->[ ${ip} ] age-cmt 삽입 ${JSON.stringify(req.body)} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
     console.log(log); // 로그를 콘솔에 출력
@@ -186,6 +186,7 @@ app.post('/moms/ccyyhh/register', async (req, res) => {
 
 // 회원가입 요청
 app.post('/moms/register', async (req, res) => {
+  let log =`` ;
   try {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -193,13 +194,14 @@ app.post('/moms/register', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-
+  
     const { id, pw, name, phone, email } = req.body;
     const register = req.url.split('/').pop();
     const ip = req.connection.remoteAddress; //client ip
     // Oracle 데이터베이스 연결
     const connection = await OracleDB.getConnection(dbConfig);
     // ccyyhh 테이블에 데이터 삽입
+    log +=`/moms/register ->[ ${ip} ] 회원가입 요청 ${JSON.stringify(req.body)} ->`
     const sql = `INSERT INTO register(id, pw, name, phone, email) VALUES (:id, :pw, :name, :phone, :email)`;
     const bindParams = {
       id: id,
@@ -209,16 +211,15 @@ app.post('/moms/register', async (req, res) => {
       email: email
     };
     const result = await connection.execute(sql, bindParams, { autoCommit: true });
-    let log =`/moms/register ->[ ${ip} ] 회원가입 요청 ${JSON.stringify(req.body)} ->`
     res.status(200).send(`Inserted ${result.rowsAffected} row(s)`);
     
-    log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+    log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
      
   } 
    catch (err) {
     console.error(err.message);
     res.status(500).send('Internal Server Error');
-    log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+    log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
   }
   fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
@@ -268,19 +269,19 @@ app.post('/moms/login', async (req, res) => {
         };
         res.end(JSON.stringify(logininfo));
         if (login.rows.length > 0) {
-          log += ` -> [성공] ${logininfo['id']}님 접속 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+          log += ` -> [성공] ${logininfo['id']}님 접속 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
           
       } else {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         const logininfo = { success: false };
-        log += ` -> [실패] 잘못된 비밀번호 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+        log += ` -> [실패] 잘못된 비밀번호 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
        
         res.end(JSON.stringify(logininfo));
       }
     } else {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       const logininfo = { success: false };
-      log += ` -> [실패] 존재하지 않는 아이디 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += ` -> [실패] 존재하지 않는 아이디 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.end(JSON.stringify(logininfo));
     }
     await connection.release();
@@ -296,6 +297,7 @@ app.post('/moms/login', async (req, res) => {
 
 //아이디 찾기
 app.post('/moms/find-id', async (req, res) => {
+  let log = ``;
   try {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -308,7 +310,7 @@ app.post('/moms/find-id', async (req, res) => {
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
     
-    let log = `/moms/find-id ->[ ${ip} ] 아이디 찾기 요청 ${JSON.stringify(req.body)}`
+    log += `/moms/find-id ->[ ${ip} ] 아이디 찾기 요청 ${JSON.stringify(req.body)}`
     fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
     console.log(log); // 로그를 콘솔에 출력
@@ -327,11 +329,11 @@ app.post('/moms/find-id', async (req, res) => {
           id: result.rows[0][0]
         };
         res.end(JSON.stringify(logininfo));
-          log += ` -> [성공] ${logininfo['id']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+          log += ` -> [성공] ${logininfo['id']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     } else {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       const logininfo = { success: false };
-      log += ` -> [실패] 존재하지 않는 이메일 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += ` -> [실패] 존재하지 않는 이메일 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.end(JSON.stringify(logininfo));
     }
     await connection.release();
@@ -346,6 +348,7 @@ app.post('/moms/find-id', async (req, res) => {
 });
 //비밀번호 수정
 app.post('/moms/change-pw', async (req, res) => {
+  let log = ``;
   try {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -358,7 +361,7 @@ app.post('/moms/change-pw', async (req, res) => {
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
     
-    let log = `/moms/change-pw ->[ ${ip} ] 비밀번호 변경 요청 ${JSON.stringify(req.body)}`
+    log += `/moms/change-pw ->[ ${ip} ] 비밀번호 변경 요청 ${JSON.stringify(req.body)}`
 
   const checkemail = await connection.execute(
     `SELECT clientnum FROM register WHERE email = :email`,
@@ -379,7 +382,7 @@ app.post('/moms/change-pw', async (req, res) => {
           pw: 'change success'
         };
         res.end(JSON.stringify(info));
-          log += ` -> [성공] ${info['pw']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+          log += ` -> [성공] ${info['pw']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       }
       else{
 
@@ -388,13 +391,13 @@ app.post('/moms/change-pw', async (req, res) => {
     else if(!pw){
       res.writeHead(401, { 'Content-Type': 'application/json' });
       const info = { success: false };
-      log += ` -> [실패] pw값이 비어있습니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += ` -> [실패] pw값이 비어있습니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.end(JSON.stringify(info));
     }
     else {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       const info = { success: false };
-      log += ` -> [실패] 존재하지 않는 이메일 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += ` -> [실패] 존재하지 않는 이메일 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.end(JSON.stringify(info));
     }
     await connection.release();
@@ -410,6 +413,7 @@ app.post('/moms/change-pw', async (req, res) => {
 
 //사진 업로드
 app.post('/upload/images', upload.array('images', 10), async (req, res) => {
+  let log = ``;
   try {
     const ip = req.connection.remoteAddress;
     const now = new Date();
@@ -421,10 +425,10 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
     const files = req.files;
     const fileNames = req.files.map(file => file.originalname);
 
-    let log = `/upload/images -> [ ${ip} ] -> `;
+    log += `/upload/images -> [ ${ip} ] -> `;
 
     if (!files) {
-      log += `[실패] 이미지 없음 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += `[실패] 이미지 없음 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.status(400).send('No file uploaded.');
       fs.appendFile(logFilePath, log, (err) => {
         if (err) throw err;
@@ -433,7 +437,7 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
       return;
     }
 
-    log += `[성공] 이미지 업로드 ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+    log += `[성공] 이미지 업로드 ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
       console.log(log); // 로그를 콘솔에 출력
@@ -448,7 +452,7 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
 
     if(result.rowsAffected>0)
     {
-      const log = `/upload -> [ ${ip} ] -> [성공] 경로 저장 성공 : ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      const log = `/upload -> [ ${ip} ] -> [성공] 경로 저장 성공 : ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     connection.close();
     res.status(200).send(`${files.length} files uploaded!`);
@@ -477,10 +481,10 @@ app.get('/image/:path', (req, res) => {
 
   fs.readFile(imagePath, (err, data) => {
     if (err) {
-      log += `[실패] 존재하지 않는 이미지 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += `[실패] 존재하지 않는 이미지 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.status(404).send('Not Found');
     } else {
-      log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.writeHead(200, {'Content-Type': 'image/jpeg'});
       res.end(data);
     }
@@ -493,7 +497,10 @@ app.get('/image/:path', (req, res) => {
 });
   
 //이메일 전송
-app.post('/moms/sendemail', (req, res) => {
+app.post('/moms/sendemail', async(req, res) => {
+  let log=``;
+  let message=``;
+  try{
   const ip = req.connection.remoteAddress;
   const now = new Date();
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -502,14 +509,45 @@ app.post('/moms/sendemail', (req, res) => {
   const minutes = now.getMinutes().toString().padStart(2, '0');
   const seconds = now.getSeconds().toString().padStart(2, '0');
   const rN = Math.floor(100000 + Math.random() * 900000);
+  const id = req.body.id;
+  const phone = req.body.phone;
   const email = req.body.email;
   emailToAuthCode[email] = rN;
+  log += `/moms/sendmail ->[ ${ip} ] 회원가입 인증 메일 전송`;
 
   // 이메일 주소의 유효성 검사
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).send('잘못된 이메일 주소입니다.');
   }
-  // nodemailer를 사용하여 이메일 전송
+  const connection = await OracleDB.getConnection(dbConfig);
+
+  const result1 = await connection.execute(`SELECT * FROM register WHERE email = :email`, [req.body.email]);
+  const result2 = await connection.execute(`SELECT * FROM register WHERE id = :id`, [req.body.id]);
+  const result3 = await connection.execute(`SELECT * FROM register WHERE phone = :phone`, [req.body.phone]);
+
+  if(result1.rows.length > 0) {
+    message += `이메일 `
+  }
+  if(result2.rows.length > 0) {
+    message += `아이디 `
+  }
+  if(result3.rows.length > 0) {
+    message += `핸드폰 번호 `
+  }
+  if((result1.rows.length > 0) || (result2.rows.length > 0) || (result3.rows.length > 0 ))
+  {
+    message += `(이)가 중복 됩니다.`;
+    log += `-> [실패] ${message} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    const info = {
+      success: false,
+      message: message
+    };
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+    return res.end(JSON.stringify(info));
+  }else{
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -521,30 +559,38 @@ app.post('/moms/sendemail', (req, res) => {
   const mailOptions = {
     from: 'mom`s care App',
     to: email,
-    subject: 'Email Authentication',
-    text: rN.toString(),
+    subject: 'Mom`s care Application 이메일 인증',
+    text: `아래의 Pin 번호를 어플리케이션에 입력해주세요\n\n\t\t${rN.toString()}`,
   };
-  let log = `/moms/sendmail ->[ ${ip} ] 회원가입 인증 메일 전송 `;
-  
-
-  transporter.sendMail(mailOptions, (error, info) => {
+ 
+  transporter.sendMail(mailOptions, (error, info) => { // 이메일 전송
     if (error) {
-      log += `-> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += `-> [실패] 에러 발생 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       fs.appendFile(logFilePath, log, (err) => {
         if (err) throw err;
         console.log(log); // 로그를 콘솔에 출력
       });
-      return res.status(500).send('Failed to send email');
+      const info = {
+        success: true,
+      };
+      return res.end(JSON.stringify(info));
     } else {
-      log += `-> [성공] ${emailToAuthCode[email]} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`
+      log += `-> [성공] ${emailToAuthCode[email]} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       fs.appendFile(logFilePath, log, (err) => {
         if (err) throw err;
         console.log(log); // 로그를 콘솔에 출력
       });
-      return res.status(200).send('Email sent');
+      const info = {
+        success: false,
+      };
+      return res.end(JSON.stringify(info));
     }
   });
-  
+}
+}catch (error) {
+  console.error(error);
+  return res.status(500).send('서버 오류가 발생했습니다.');
+}
 });
 
 
@@ -563,7 +609,7 @@ app.post('/moms/sendemail/auth', (req, res) => {
   
   //인증값 비교
   if (emailToAuthCode[email] === authCode) {
-    log += `-> [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+    log += `-> [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     delete emailToAuthCode[email]; // 인증 성공시 코드 삭제
     const info = {
       success: true,
@@ -574,7 +620,7 @@ app.post('/moms/sendemail/auth', (req, res) => {
     });
     return res.end(JSON.stringify(info));
   } else {
-    log += `-> [실패]] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}>\n`;
+    log += `-> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     const info = {
       success: false,
     };
