@@ -465,6 +465,13 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
 
 //이미지 불러오기 ex) http://182.219.226.49/image/image_name
 app.get('/image/:path', (req, res) => {
+  const ip = req.connection.remoteAddress;
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
   const imagePath = 'uploads/image/' + req.params.path;
   let log =`/image/${imagePath} -> [ ${ip} ] 이미지 요청 -> `;
   fs.readFile(imagePath, (err, data) => {
