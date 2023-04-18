@@ -8,7 +8,13 @@ const multer  = require('multer');
 const upload = multer({ dest: 'uploads/image/' });
 const emailToAuthCode = {};
 const fs = require('fs');
-
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'samron3797@gmail.com',
+    pass: 'suptmsennwtdjpis',
+  },
+});
 
 const logFilePath = 'server_logs.txt';
 
@@ -229,6 +235,11 @@ app.post('/moms/register', async (req, res) => {
 
 //로그인 
 app.post('/moms/login', async (req, res) => {
+  let log = `/moms/login ->[ ${ip} ] 로그인 요청 ${JSON.stringify(req.body)}`;
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
   try {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -240,12 +251,6 @@ app.post('/moms/login', async (req, res) => {
     const { id, pw } = req.body;
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
-    
-    let log = `/moms/login ->[ ${ip} ] 로그인 요청 ${JSON.stringify(req.body)}`
-    fs.appendFile(logFilePath, log, (err) => {
-    if (err) throw err;
-    console.log(log); // 로그를 콘솔에 출력
-  });
 
     const result = await connection.execute(
       `SELECT id, pw FROM register WHERE id = :id`,
@@ -297,43 +302,75 @@ app.post('/moms/login', async (req, res) => {
 
 //아이디 찾기
 app.post('/moms/find-id', async (req, res) => {
+  const now = new Date();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const seconds = now.getSeconds().toString().padStart(2, '0');
+    
+  const ip = req.connection.remoteAddress;
   let log = ``;
+  const name = req.body.name;
+  const phone = req.body.phone;
+  const email = req.body.email;
+  const rN = Math.floor(100000 + Math.random() * 900000);
+  emailToAuthCode[email] = rN;
+  log += `/moms/find-id ->[ ${ip} ] 아이디 찾기 요청 ${JSON.stringify(req.body)}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} > `;
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+    log = ``;
   try {
-    const now = new Date();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-
-    const { email } = req.body;
-    const ip = req.connection.remoteAddress;
+    
     const connection = await OracleDB.getConnection(dbConfig);
     
-    log += `/moms/find-id ->[ ${ip} ] 아이디 찾기 요청 ${JSON.stringify(req.body)}`
-    fs.appendFile(logFilePath, log, (err) => {
-    if (err) throw err;
-    console.log(log); // 로그를 콘솔에 출력
-  });
-
     const result = await connection.execute(
-      `SELECT id FROM register WHERE email = :email`,
-      [email]
+      `SELECT id FROM register WHERE (email = :email) and (name = :name) and (phone = :phone)`,
+      [email, name, phone]
     );
 
     if (result.rows.length > 0) {
-     
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const logininfo = {
           success: true,
-          id: result.rows[0][0]
+          id: result[0]
         };
+  const mailOptions = {
+    from: 'mom`s care App',
+    to: email,
+    subject: 'Mom`s care Application 이메일 인증',
+    text: `아래의 Pin 번호를 어플리케이션에 입력해주세요\n\n\t\t${rN.toString()}`,
+  };
+  transporter.sendMail(mailOptions, (error, info) => { // 이메일 전송
+    if (error) {
+      log += `/moms/find-id ->[ ${ip} ] 아이디 찾기 인증 메일 전송 -> [실패] 에러 발생 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      const info = {
+        success: false,
+      };
+      return res.end(JSON.stringify(info));
+    } else {
+      log += `/moms/find-id ->[ ${ip} ] 아이디 찾기 인증 메일 전송 -> [성공] ${emailToAuthCode[email]} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      const info = {
+        success: true,
+      };
+      return res.end(JSON.stringify(info));
+    }
+  });
         res.end(JSON.stringify(logininfo));
-          log += ` -> [성공] ${logininfo['id']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     } else {
       res.writeHead(401, { 'Content-Type': 'application/json' });
-      const logininfo = { success: false };
-      log += ` -> [실패] 존재하지 않는 이메일 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      const logininfo = { success: false};
+      log += ` -> [실패] 일치하는 회원정보가 없습니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       res.end(JSON.stringify(logininfo));
     }
     await connection.release();
@@ -345,6 +382,46 @@ app.post('/moms/find-id', async (req, res) => {
     if (err) throw err;
     console.log(log); // 로그를 콘솔에 출력
   });
+});
+
+// 아이디 반환
+app.post('/moms/find-id/id', async (req, res) => {
+  const email = req.body.email;
+  const now = new Date();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const seconds = now.getSeconds().toString().padStart(2, '0');
+  let log =``;
+  const ip = req.connection.remoteAddress;
+  try {
+    const connection = await OracleDB.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT id FROM register WHERE email = :email`,
+      [email]
+    );
+    const info = {
+      success: true,
+      id: result.rows[0][0],
+    };
+    if(result.rows.length > 0)
+    {
+      log = `/moms/find-id/id ->[ ${ip} ] 아이디 반환 -> [성공] ${result.rows[0][0]} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    else{
+      log = `/moms/find-id/id ->[ ${ip} ] 아이디 반환 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+    await connection.release();
+    return res.end(JSON.stringify(info));
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: '아이디 반환 실패 ' });
+  }
 });
 //비밀번호 수정
 app.post('/moms/change-pw', async (req, res) => {
@@ -521,9 +598,9 @@ app.post('/moms/sendemail', async(req, res) => {
   }
   const connection = await OracleDB.getConnection(dbConfig);
 
-  const result1 = await connection.execute(`SELECT * FROM register WHERE email = :email`, [req.body.email]);
-  const result2 = await connection.execute(`SELECT * FROM register WHERE id = :id`, [req.body.id]);
-  const result3 = await connection.execute(`SELECT * FROM register WHERE phone = :phone`, [req.body.phone]);
+  const result1 = await connection.execute(`SELECT * FROM register WHERE email = :email`, [email]);
+  const result2 = await connection.execute(`SELECT * FROM register WHERE id = :id`, [id]);
+  const result3 = await connection.execute(`SELECT * FROM register WHERE phone = :phone`, [phone]);
 
   if(result1.rows.length > 0) {
     message += `이메일 `
@@ -537,7 +614,7 @@ app.post('/moms/sendemail', async(req, res) => {
   if((result1.rows.length > 0) || (result2.rows.length > 0) || (result3.rows.length > 0 ))
   {
     message += `(이)가 중복 됩니다.`;
-    log += `-> [실패] ${message} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    log += ` -> [실패] ${message} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     const info = {
       success: false,
       message: message
@@ -548,13 +625,6 @@ app.post('/moms/sendemail', async(req, res) => {
     });
     return res.end(JSON.stringify(info));
   }else{
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'samron3797@gmail.com',
-      pass: 'suptmsennwtdjpis',
-    },
-  });
 
   const mailOptions = {
     from: 'mom`s care App',
@@ -565,23 +635,23 @@ app.post('/moms/sendemail', async(req, res) => {
  
   transporter.sendMail(mailOptions, (error, info) => { // 이메일 전송
     if (error) {
-      log += `-> [실패] 에러 발생 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
-      fs.appendFile(logFilePath, log, (err) => {
-        if (err) throw err;
-        console.log(log); // 로그를 콘솔에 출력
-      });
-      const info = {
-        success: true,
-      };
-      return res.end(JSON.stringify(info));
-    } else {
-      log += `-> [성공] ${emailToAuthCode[email]} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log += ` -> [실패] 에러 발생 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       fs.appendFile(logFilePath, log, (err) => {
         if (err) throw err;
         console.log(log); // 로그를 콘솔에 출력
       });
       const info = {
         success: false,
+      };
+      return res.end(JSON.stringify(info));
+    } else {
+      log += ` -> [성공] ${emailToAuthCode[email]} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      const info = {
+        success: true,
       };
       return res.end(JSON.stringify(info));
     }
@@ -594,7 +664,7 @@ app.post('/moms/sendemail', async(req, res) => {
 });
 
 
-//이메일 인증
+//이메일 인증1
 app.post('/moms/sendemail/auth', (req, res) => {
   const ip = req.connection.remoteAddress;
   const now = new Date();
@@ -605,11 +675,11 @@ app.post('/moms/sendemail/auth', (req, res) => {
   const seconds = now.getSeconds().toString().padStart(2, '0');
   const email = req.body.email;
   const authCode = parseInt(req.body.auth);
-  let log = `/moms/sendmail/auth ->[ ${ip} ] 메일 인증 ${JSON.stringify(req.body)}`;
+  let log = `/moms/sendemail/auth ->[ ${ip} ] 메일 인증 ${JSON.stringify(req.body)}`;
   
   //인증값 비교
   if (emailToAuthCode[email] === authCode) {
-    log += `-> [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    log += ` -> [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     delete emailToAuthCode[email]; // 인증 성공시 코드 삭제
     const info = {
       success: true,
@@ -619,8 +689,8 @@ app.post('/moms/sendemail/auth', (req, res) => {
       console.log(log); // 로그를 콘솔에 출력
     });
     return res.end(JSON.stringify(info));
-  } else {
-    log += `-> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+  }else {
+    log += ` -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     const info = {
       success: false,
     };
@@ -629,9 +699,11 @@ app.post('/moms/sendemail/auth', (req, res) => {
       console.log(log); // 로그를 콘솔에 출력
     });
     return res.end(JSON.stringify(info));
-  }
-  
+  }  
 });
+
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
+
+
