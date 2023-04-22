@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'samron3797@gmail.com',
-    pass: '?????????????',
+    pass: 'suptmsennwtdjpis',
   },
 });
 
@@ -298,6 +298,7 @@ app.post('/moms/login', async (req, res) => {
 
 //아이디 찾기 이메일 인증
 app.post('/moms/find-id', async (req, res) => {
+  let log =``;
   const now = new Date();
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
   const day = now.getDate().toString().padStart(2, '0');
@@ -362,6 +363,7 @@ app.post('/moms/find-id', async (req, res) => {
     }
     await connection.release();
   } catch (err) {
+    log += `/moms/find-id ->[ ${ip} ] -> [실패] 오류 발생 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     console.error(err.message);
     res.status(500).send('Server Error');
   }
@@ -429,7 +431,7 @@ app.post('/moms/change-pw', async (req, res) => {
     `SELECT clientnum FROM register WHERE email = :email and id = :id and phone = :phone`,
     [email, id, phone]
   );
-  
+
     if (check.rows.length > 0) {
       const mailOptions = {
         from: 'mom`s care App',
@@ -495,9 +497,9 @@ app.post('/moms/change-pw/pw', async (req, res) => {
   const seconds = now.getSeconds().toString().padStart(2, '0');
   const pw = req.body.pw;
   const email = req.body.email;
-  
   const connection = await OracleDB.getConnection(dbConfig);
   let log = ``;
+
   try{
   const sql = `UPDATE register SET pw = :pw where email= :email`;
   const bindParams = {
@@ -506,7 +508,7 @@ app.post('/moms/change-pw/pw', async (req, res) => {
   };
   const result = await connection.execute(sql, bindParams, { autoCommit: true });
      
-  if (result.rowsAffecte >0){
+  if (result.rowsAffected > 0){
     res.writeHead(200, { 'Content-Type': 'application/json' });
     const info = {
        success: true,
@@ -534,6 +536,7 @@ app.post('/moms/change-pw/pw', async (req, res) => {
   }
   
 });
+
 //사진 업로드
 app.post('/upload/images', upload.array('images', 10), async (req, res) => {
   let log = ``;
@@ -809,6 +812,7 @@ app.post('/moms/sendemail/auth', (req, res) => {
     return res.end(JSON.stringify(info));
   }  
 });
+
 //다이어리 등록
 app.post('/moms/diary/register', async (req, res) => {
   let log =`` ;
@@ -840,6 +844,12 @@ app.post('/moms/diary/register', async (req, res) => {
      
   } 
    catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
     console.error(err.message);
     res.status(500).send('Internal Server Error');
     log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -850,7 +860,7 @@ app.post('/moms/diary/register', async (req, res) => {
   });
 });
 
-//문의사항 입력값 -> content, clientNum
+//문의사항 입력 값 -> content, clientNum
 app.post('/moms/inquire-request', async (req, res) => {
   let log =`` ;
   try {
@@ -865,10 +875,10 @@ app.post('/moms/inquire-request', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/inquire ->[ ${ip} ] 문의 사항 입력 ${JSON.stringify(req.body)} ->`
-    const sql = `INSERT INTO inquire (inquireNo, content, reply, inquire_date, clientNum) VALUES (seq_inquire.NEXTVAL, :content , '아직 답변이 오지 않았어요!',TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS'), :clientNum);`;
+    const sql = `INSERT INTO inquire (inquireNo, content, reply, inquire_date, clientNum) VALUES (seq_inquire.NEXTVAL, :content , '아직 답변이 오지 않았어요',TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS'), :clientNum)`;
     const bind = {
       content: content,
-      clientNum: clientNum
+      clientNum: parseInt(clientNum)
     };
     const result = await connection.execute(sql, bind, { autoCommit: true });
     if(result.rowsAffected > 0)
@@ -878,6 +888,12 @@ app.post('/moms/inquire-request', async (req, res) => {
     }
   } 
    catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
     console.error(err.message);
     res.status(500).send('서버 오류');
     log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -901,7 +917,7 @@ app.post('/moms/inquire', async (req, res) => {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const ip = req.connection.remoteAddress; //client ip
-    const { clientNum } = req.body;
+    const clientNum = parseInt(req.body);
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/inquire ->[ ${ip} ] 문의 사항 조회 ${JSON.stringify(req.body)} ->`
@@ -912,6 +928,7 @@ app.post('/moms/inquire', async (req, res) => {
     const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     if(result.rows.length > 0)
     {
+      console.log(result.rows);
       res.status(200).send(result.rows);
       log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
@@ -921,6 +938,12 @@ app.post('/moms/inquire', async (req, res) => {
     }
   } 
   catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
     console.error(err.message);
     res.status(500).send('서버 오류');
     log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
