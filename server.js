@@ -253,7 +253,7 @@ app.post('/moms/login', async (req, res) => {
       [id]
     );
 
-    if (result.rows.length> 0) {
+    if (result.rows.length > 0) {
       const login = await connection.execute(
         `SELECT * FROM register WHERE id = :id and pw = :pw`,
         [id, crypto.createHash('md5').update(pw).digest('hex')]
@@ -268,10 +268,10 @@ app.post('/moms/login', async (req, res) => {
           phone: login.rows[0][4],
           email: login.rows[0][5]
         };
-        res.end(JSON.stringify(logininfo));
+        
         if (login.rows.length > 0) {
+          res.end(JSON.stringify(logininfo));
           log += ` -> [성공] ${logininfo['id']}님 접속 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
-          
       } else {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         const logininfo = { success: false };
@@ -574,7 +574,7 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
       const filePaths = files.map(file => file.path);
       for (let i = 0; i < files.length; i++) {
         const filename = filePaths[i].split('\\').pop().split('/').pop();
-        fileNames += `/${filename}`;
+        fileNames += `${filename}/`;
       }
       if(Sresult.rows.length > 0){ // 입력받은 다이어리가 존재하면
         log += `[성공] 이미지 업로드 ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
@@ -594,12 +594,18 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
         if(result.rowsAffected > 0)
         {
           log = `/upload -> [ ${ip} ] -> [성공] 경로 저장 성공 : ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+          res.status(200).send(`${files.length} files path uploaded!`);
+        }
+        else
+        {
+          log = `/upload -> [ ${ip} ] -> [실패] 경로 저장 실패 : ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+          res.status(500).send(`${files.length} files path uploaded failed`);
         }
         connection.close();
-        res.status(200).send(`${files.length} files uploaded!`);
+        
       }
     else{
-      log += `[실패] 아직은 알 수 없는 오류 ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log += `[실패] 해당하는 다이어리값이 없습니다. ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
   }
 } catch (err) {
@@ -641,7 +647,7 @@ app.post('/moms/diary', async (req, res) => {
     };
     if(result.rows.length> 0)
     {
-      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [성공] ${clientNum}< ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [성공] ${clientNum} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     else{
       log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
