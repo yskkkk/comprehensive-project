@@ -246,7 +246,7 @@ app.post('/moms/login', async (req, res) => {
   const { id, pw } = req.body;
   const ip = req.connection.remoteAddress;
   const connection = await OracleDB.getConnection(dbConfig);
-  let log = `/moms/login ->[ ${ip} ] 로그인 요청 ${JSON.stringify(req.body)}`;
+  let log = `/moms/login ->[ ${ip} ] 로그인 요청 ${id}`;
   try {
     const result = await connection.execute(
       `SELECT id, pw FROM register WHERE id = :id`,
@@ -647,7 +647,7 @@ app.post('/moms/diary', async (req, res) => {
     };
     if(result.rows.length> 0)
     {
-      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [성공] ${clientNum} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [성공] ${clientNum} ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     else{
       log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
@@ -866,7 +866,7 @@ app.post('/moms/diary/register', async (req, res) => {
   });
 });
 
-//문의사항 입력 값 -> content, clientNum
+//문의사항 입력 값 -> title, content, clientNum
 app.post('/moms/inquire-request', async (req, res) => {
   let log =`` ;
   try {
@@ -877,12 +877,13 @@ app.post('/moms/inquire-request', async (req, res) => {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const ip = req.connection.remoteAddress; //client ip
-    const { content, clientNum } = req.body;
+    const { title, content, clientNum } = req.body;
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/inquire ->[ ${ip} ] 문의 사항 입력 ${JSON.stringify(req.body)} ->`
-    const sql = `INSERT INTO inquire (inquireNo, content, reply, inquire_date, clientNum) VALUES (seq_inquire.NEXTVAL, :content , '아직 답변이 오지 않았어요',TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS'), :clientNum)`;
+    const sql = `INSERT INTO inquire (inquireNo, title, content, reply, inquire_date, clientNum) VALUES (seq_inquire.NEXTVAL, :title ,:content , '아직 답변이 오지 않았어요',TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS'), :clientNum)`;
     const bind = {
+      title: title,
       content: content,
       clientNum: parseInt(clientNum)
     };
@@ -912,7 +913,7 @@ app.post('/moms/inquire-request', async (req, res) => {
 
 //문의사항 반환 
 //입력 값 clientNum
-//반환 값 content, reply, inqure_date 
+//반환 값 title, content, reply, inqure_date 
 app.post('/moms/inquire', async (req, res) => {
   let log =`` ;
   try {
@@ -1022,6 +1023,12 @@ app.post('/moms/baby/register', async (req, res) => {
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
   } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
     console.error(err.message);
     res.status(500).send('서버 오류');
     log += `[실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1048,7 +1055,7 @@ app.post('/moms/baby', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log += `/moms/baby/register -> [${ip}] 아기 정보 조회 (clientNum: ${clientNum}) ->`;
-    const sql = `SELECT babyName, expectedDate, dadName, momName FROM baby WHERE clientNum = :clientNum`;
+    const sql = `SELECT babyNo, babyName, expectedDate, dadName, momName FROM baby WHERE clientNum = :clientNum`;
     const bind = { clientNum };
     const result = await connection.execute(sql, bind);
 
