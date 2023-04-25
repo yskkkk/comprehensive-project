@@ -1040,7 +1040,7 @@ app.post('/moms/baby/register', async (req, res) => {
 });
 //아기 정보 반환
 //입력 값 clientNum
-//반환 값 babyName, expectedDate, dadName, momName
+//반환 값 babyNo, babyName, expectedDate, dadName, momName, clientNum
 app.post('/moms/baby', async (req, res) => {
   let log = ``;
   try {
@@ -1054,7 +1054,7 @@ app.post('/moms/baby', async (req, res) => {
     const { clientNum } = req.body;
     const connection = await OracleDB.getConnection(dbConfig);
 
-    log += `/moms/baby/register -> [${ip}] 아기 정보 조회 (clientNum: ${clientNum}) ->`;
+    log += `/moms/baby -> [${ip}] 아기 정보 조회 (clientNum: ${clientNum}) ->`;
     const sql = `SELECT babyNo, babyName, expectedDate, dadName, momName FROM baby WHERE clientNum = :clientNum`;
     const bind = { clientNum };
     const result = await connection.execute(sql, bind);
@@ -1071,6 +1071,49 @@ app.post('/moms/baby', async (req, res) => {
     res.status(500).send('서버 오류');
     log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
   }
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+});
+
+//아기정보 수정
+// 입력값 clientNum, babyNo, babyName, expectedDate, dadName, momName
+// babyNo는 아기정보 요청할때 반환되며 사용자에게 표출되지 않고 어플리케이션 내부에서 식별자로 쓰여야 한다.
+app.post('/moms/baby/modify', async (req, res) => {
+  let log = ``;
+  try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
+    const { clientNum, babyNo, babyName, expectedDate, dadName, momName } = req.body;
+    const connection = await OracleDB.getConnection(dbConfig);
+
+    log += `/moms/baby/modify -> [${ip}] 아기 정보 수정 (clientNum: ${clientNum}) ->`;
+
+    const sql = `UPDATE baby SET babyName = :babyName, expectedDate = :expectedDate, dadName = :dadName, momName = :momName WHERE (clientNum = :clientNum and babyNo = :babyNo)`;
+    const bind = { clientNum, babyNo, babyName, expectedDate, dadName, momName };
+
+    const result = await connection.execute(sql, bind);
+
+    if (result.rowsAffected > 0) {
+      res.status(200).send('아기 정보가 업데이트 되었습니다.');
+      log += ` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    } else {
+      res.status(404).send('아기 정보 업데이트에 실패하였습니다.');
+      log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    }
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('서버 오류');
+    log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+  }
+
   fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
     console.log(log); // 로그를 콘솔에 출력
