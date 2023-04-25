@@ -631,23 +631,27 @@ app.post('/moms/diary', async (req, res) => {
   const seconds = now.getSeconds().toString().padStart(2, '0');
   let log =``;
   const ip = req.connection.remoteAddress;
+  const connection = await OracleDB.getConnection(dbConfig);
   try {
-    const connection = await OracleDB.getConnection(dbConfig);
+    
     const result = await connection.execute(
-      `SELECT content, imageURL FROM diary WHERE clientNum = :clientNum and diary_date = :diary_date `,
+      `SELECT content, imageURL FROM diary WHERE clientNum = :clientNum and diary_date = :diary_date`,
       [clientNum, diary_date]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: '일치하는 데이터가 없습니다.' });
+    if (result.rows.length < 1) {
+      const info = {
+        success: false
+      };
+      return res.end(JSON.stringify(info));
     }
     const info = {
       success: true,
       content: result.rows[0][0],
       imageURL: result.rows[0][1]
     };
-    if(result.rows.length> 0)
+    if(result.rows.length > 0)
     {
-      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [성공] ${clientNum} ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [성공] ${clientNum}, ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     else{
       log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
