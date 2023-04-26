@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const multer  = require('multer');
 const upload = multer({ dest: 'uploads/image/' });
 const emailToAuthCode = {};
+const path = require('path');
 const fs = require('fs');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -584,6 +585,7 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
         });
         log=``;
       
+    
         const sql2 = `UPDATE diary SET imageURL = :fileNames WHERE diaryNo = :diaryNo`;
         const binds2 = {
           fileNames: fileNames,
@@ -601,6 +603,7 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
           log = `/upload -> [ ${ip} ] -> [실패] 경로 저장 실패 : ${fileNames} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
           res.status(500).send(`${files.length} files path uploaded failed`);
         }
+      
         connection.close();
         
       }
@@ -633,7 +636,6 @@ app.post('/moms/diary', async (req, res) => {
   const ip = req.connection.remoteAddress;
   const connection = await OracleDB.getConnection(dbConfig);
   try {
-    
     const result = await connection.execute(
       `SELECT content, imageURL FROM diary WHERE clientNum = :clientNum and diary_date = :diary_date`,
       [clientNum, diary_date]
@@ -928,7 +930,7 @@ app.post('/moms/inquire', async (req, res) => {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const ip = req.connection.remoteAddress; //client ip
-    const clientNum = parseInt(req.body);
+    const clientNum = parseInt(req.body.clientNum);
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/inquire ->[ ${ip} ] 문의 사항 조회 ${JSON.stringify(req.body)} ->`
@@ -1113,6 +1115,13 @@ app.post('/moms/baby/modify', async (req, res) => {
     }
 
   } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
     console.error(err.message);
     res.status(500).send('서버 오류');
     log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1121,6 +1130,72 @@ app.post('/moms/baby/modify', async (req, res) => {
   fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
     console.log(log); // 로그를 콘솔에 출력
+  });
+});
+
+app.get('/moms/table/:table', async (req, res) => {
+  let log = ``;
+  try {
+    const ip = req.connection.remoteAddress;
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const table = req.params.table;
+    const connection = await OracleDB.getConnection({
+      user: dbConfig.user,
+      password: dbConfig.password,
+      connectString: dbConfig.connectString,
+      // 아래 두 줄을 추가합니다.
+      poolMax: 10,
+      poolMin: 0,
+    });
+
+    const sql = `SELECT * FROM ${table}`;
+    const result = await connection.execute(sql, [], { autoCommit: true });
+
+    const jsonData = [];
+    const columnNames = result.metaData.map((col) => col.name);
+    for (let row of result.rows) {
+      const obj = {};
+      for (let i = 0; i < columnNames.length; i++) {
+        obj[columnNames[i]] = row[i];
+      }
+      jsonData.push(obj);
+    }
+    res.send(jsonData);
+
+    log += `/moms/table ->[ ${ip} ] ${table} 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    await connection.close(); // release 대신 close를 사용합니다.
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log);
+    });
+  } catch (err) {
+    console.error(err.message);
+  }
+});
+
+app.get('/moms/logs', (req, res) => {
+  const filePath = path.join(__dirname, 'server_logs.txt');
+  const readStream = fs.createReadStream(filePath);
+
+  let data = '';
+
+  readStream.on('data', (chunk) => {
+    data = chunk + data; // 역순으로 읽기 위해 chunk를 data 앞쪽에 추가
+  });
+
+  readStream.on('end', () => {
+    data = data.replace(/\n/g, '<br>'); // 줄바꿈을 HTML 태그로 변환
+    res.send(data);
+  });
+
+  readStream.on('error', (err) => {
+    console.error(err);
+    res.status(500).send('서버 오류');
   });
 });
 
