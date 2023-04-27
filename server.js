@@ -742,6 +742,7 @@ app.post('/moms/diary', async (req, res) => {
   const connection = await OracleDB.getConnection();
   const diary_date = req.body.diary_date;
   try {
+    const ip = req.connection.remoteAddress;
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
@@ -804,7 +805,7 @@ app.post('/moms/diary/timeline', async (req, res) => {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
 
-    const sql = `SELECT * FROM diary WHERE clientNum = :clientNum order by diary_date`;
+    const sql = `SELECT * FROM diary WHERE clientNum = :clientNum and imageURL in not null order by diary_date`;
     const bind = {
       clientNum: clientNum,
     };
