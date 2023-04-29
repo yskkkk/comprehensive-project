@@ -615,7 +615,7 @@ app.post('/moms/change-phone', async (req, res) => {
   let log = ``;
 
   try{
-  const sql = `UPDATE register SET phone = :phone where clientNum= :clientNum`;
+  const sql = `UPDATE register SET phone = :phone where clientNum = :clientNum`;
   const bindParams = {
     phone: phone,
     clientNum: clientNum
@@ -805,7 +805,7 @@ app.post('/moms/diary/timeline', async (req, res) => {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
 
-    const sql = `SELECT * FROM diary WHERE clientNum = :clientNum and imageURL in not null order by diary_date`;
+    const sql = `SELECT diary_date, imageurl FROM diary WHERE clientNum = :clientNum and imageURL is not null order by diary_date`;
     const bind = {
       clientNum: clientNum,
     };
@@ -825,7 +825,7 @@ app.post('/moms/diary/timeline', async (req, res) => {
         imageURL: row.IMAGEURL
       }))
     };
-    console.log(info);
+    
   
     const log = `/moms/diary/timeline ->[ ${ip} ] 타임라인 요청 -> [성공] ${clientNum} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     fs.appendFile(logFilePath, log, (err) => {
@@ -833,7 +833,10 @@ app.post('/moms/diary/timeline', async (req, res) => {
       console.log(log); // 로그를 콘솔에 출력
     });
     await connection.release();
-    return res.end(JSON.stringify(info));
+    //return res.end(JSON.stringify(info)); 이거는 기존 json
+    console.log(result.rows);
+    return res.status(200).send(result.rows);
+    
   } catch (err) {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -1422,7 +1425,7 @@ app.get('/moms/logs', (req, res) => {
 });
 //임신 주차 반환
 //입력값 clientNum
-//반환값 babyname, expecteddate, week 
+//반환값 babyname, expecteddate, dday, week
 app.post('/moms/pregnancy-week', async (req, res) => {
   let log =`` ;
   let today=``;
@@ -1438,7 +1441,7 @@ app.post('/moms/pregnancy-week', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
     today= `${now.getFullYear()}-${month}-${day}`;
 
-    log +=`/moms/pregnancy-week ->[ ${ip} ] 임신 주차 조회 ${JSON.stringify(req.query)} ->`
+    log +=`/moms/pregnancy-week ->[ ${ip} ] 임신 주차 조회 ${JSON.stringify(req.body)} ->`
     const sql = `SELECT babyname, expecteddate FROM baby WHERE clientNum = :clientNum and expecteddate > :today`;
     const bind = {
       clientNum: clientNum,
@@ -1451,8 +1454,10 @@ app.post('/moms/pregnancy-week', async (req, res) => {
         const babies = result.rows.map(row => ({
           babyname: row.BABYNAME,
           expecteddate: row.EXPECTEDDATE,
+          dday: moment(row.EXPECTEDDATE, 'YYYY-MM-DD').diff(today, 'days'),
           week: Math.ceil((moment(today, 'YYYY-MM-DD').diff(moment(moment(row.EXPECTEDDATE, 'YYYY-MM-DD').subtract(280, 'days').format('YYYY-MM-DD'), 'YYYY-MM-DD'), 'days')+1)/7)
        }));
+       console.log(babies);
         res.status(200).send(babies);
         log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
       }
