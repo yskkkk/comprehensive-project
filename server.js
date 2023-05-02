@@ -367,9 +367,7 @@ app.post('/moms/find-id', async (req, res) => {
   const minutes = now.getMinutes().toString().padStart(2, '0');
   const seconds = now.getSeconds().toString().padStart(2, '0');
   const ip = req.connection.remoteAddress;
-  const name = req.body.name;
-  const phone = req.body.phone;
-  const email = req.body.email;
+  const {name, phone, email}= req.body;
   const rN = Math.floor(100000 + Math.random() * 900000);
   emailToAuthCode[email] = rN;
   try {
@@ -849,6 +847,50 @@ app.post('/moms/diary/timeline', async (req, res) => {
     console.error(err);
     return res.status(500).json({ error: '타임라인 요청 실패 ' });
   }
+});
+//다이어리 삭제
+//입력 값 clientNum, diary_date
+//반환 값
+//링크 http://182.219.226.49/moms/diary/delete
+app.post('/moms/diary/delete', async (req, res) => {
+  let log = '';
+  try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress;
+    const { diary_date, clientNum } = req.body;
+    const connection = await OracleDB.getConnection(dbConfig);
+
+    log += `/moms/diary/delete -> [ ${ip} ] 다이어리 삭제 ${JSON.stringify(req.body)} -> `;
+    const sql = `delete from diary where diary_date = :diary_date and clientNum = :clientNum`;
+    const bind = {
+      diary_date: diary_date,
+      clientNum: clientNum
+    };
+    const result = await connection.execute(sql, bind, { autoCommit: true });
+    if (result.rowsAffected > 0) {
+      res.status(200).send(`다이어리 삭제 성공`);
+      log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    }
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    console.error(err.message);
+    res.status(500).send('서버 오류');
+    log += `[실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+  }
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log);
+  });
 });
 
 //이미지 불러오기 ex) http://182.219.226.49/image/image_name
