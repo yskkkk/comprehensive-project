@@ -204,13 +204,11 @@ app.post('/moms/register', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-  
+    const ip = req.connection.remoteAddress; //client ip
     const { id, pw, name, phone, email } = req.body;
     const register = req.url.split('/').pop();
-    const ip = req.connection.remoteAddress; //client ip
-    // Oracle 데이터베이스 연결
     const connection = await OracleDB.getConnection(dbConfig);
-    // ccyyhh 테이블에 데이터 삽입
+
     log +=`/moms/register ->[ ${ip} ] 회원가입 요청 ${JSON.stringify(req.body)} ->`
     const sql = `INSERT INTO register(id, pw, name, phone, email) VALUES (:id, :pw, :name, :phone, :email)`;
     const bindParams = {
@@ -227,9 +225,16 @@ app.post('/moms/register', async (req, res) => {
      
   } 
    catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
     console.error(err.message);
     res.status(500).send('Internal Server Error');
-    log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
   }
   fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
@@ -1143,7 +1148,8 @@ app.post('/moms/inquire-request', async (req, res) => {
 
 //문의사항 반환 
 //입력 값 clientNum
-//반환 값 title, content, reply, inqure_date 
+//반환 값 title, inquire_date ,inquireNo
+//http://182.219.226.49/moms/inquire
 app.post('/moms/inquire', async (req, res) => {
   let log =`` ;
   try {
@@ -1158,7 +1164,7 @@ app.post('/moms/inquire', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/inquire ->[ ${ip} ] 문의 사항 조회 ${JSON.stringify(req.body)} ->`
-    const sql = `SELECT * FROM inquire WHERE clientNum = :clientNum`;
+    const sql = `SELECT  inquireNo, title, inquire_date FROM inquire WHERE clientNum = :clientNum`;
     const bind = {
       clientNum: clientNum
     };
@@ -1190,7 +1196,56 @@ app.post('/moms/inquire', async (req, res) => {
     console.log(log); // 로그를 콘솔에 출력
   });
 });
+//문의사항 세부사항
+//입력 값 clientNum,  INQUIRENO
+//반환 값 title, content, reply, inquire_date 
+//http://182.219.226.49/moms/inquire-info
+app.post('/moms/inquire-info', async (req, res) => {
+  let log =`` ;
+  try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
+    const clientNum = parseInt(req.body.clientNum);
+    const connection = await OracleDB.getConnection(dbConfig);
 
+    log +=`/moms/inquire-info ->[ ${ip} ] 문의 사항 세부 조회 ${JSON.stringify(req.body)} ->`
+    const sql = `SELECT title, content, reply, inquire_date FROM inquire WHERE clientNum = :clientNum`;
+    const bind = {
+      clientNum: clientNum
+    };
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+    if(result.rows.length > 0)
+    {
+      console.log(result.rows);
+      res.status(200).send(result.rows);
+      log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    }
+    else {
+      res.status(200).send(`존재하지 않는 문의사항 입니다.`);
+      log +=` [실패] 존재하지 않는 문의사항 입니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    }
+  } 
+  catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    console.error(err.message);
+    res.status(500).send('서버 오류');
+    log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+  }
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+});
 //공지사항 요청
 app.post('/moms/notice', async (req, res) => {
   let log =`` ;
