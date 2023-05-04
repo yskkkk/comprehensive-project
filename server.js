@@ -1164,14 +1164,13 @@ app.post('/moms/inquire', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/inquire ->[ ${ip} ] 문의 사항 조회 ${JSON.stringify(req.body)} ->`
-    const sql = `SELECT  inquireNo, title, inquire_date FROM inquire WHERE clientNum = :clientNum`;
+    const sql = `SELECT inquireNo, title, inquire_date FROM inquire WHERE clientNum = :clientNum`;
     const bind = {
       clientNum: clientNum
     };
     const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     if(result.rows.length > 0)
     {
-      console.log(result.rows);
       res.status(200).send(result.rows);
       log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
@@ -1211,12 +1210,14 @@ app.post('/moms/inquire-info', async (req, res) => {
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const ip = req.connection.remoteAddress; //client ip
     const clientNum = parseInt(req.body.clientNum);
+    const inquireNo = parseInt(req.body.inquireNo);
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/inquire-info ->[ ${ip} ] 문의 사항 세부 조회 ${JSON.stringify(req.body)} ->`
-    const sql = `SELECT title, content, reply, inquire_date FROM inquire WHERE clientNum = :clientNum`;
+    const sql = `SELECT title, content, reply, inquire_date FROM inquire WHERE clientNum = :clientNum and inquireNo = :inquireNo`;
     const bind = {
-      clientNum: clientNum
+      clientNum: clientNum,
+      inquireNo: inquireNo
     };
     const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     if(result.rows.length > 0)
@@ -1261,6 +1262,42 @@ app.post('/moms/notice', async (req, res) => {
 
     log +=`/moms/notice ->[ ${ip} ] 공지사항 조회 ->`
     const sql = `SELECT * FROM notice`;
+    const result = await connection.execute(sql);
+    if(result.rows.length > 0)
+    {
+      res.status(200).json(result.rows);
+      log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    }
+  } 
+  catch (err) {
+    console.error(err.message);
+    res.status(500).send('서버 오류');
+    log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+  }
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+});
+
+//공지사항 세부 사항
+//입력값 noticeNo
+//반환값 TITLE, NOTICE_DATE, CONTENT
+// http://182.219.226.49/moms/notice-info
+app.post('/moms/notice-info', async (req, res) => {
+  let log =`` ;
+  try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');s
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
+    const connection = await OracleDB.getConnection(dbConfig);
+
+    log +=`/moms/notice-info ->[ ${ip} ] 공지사항 세부 사항 조회 ->`
+    const sql = `SELECT title, content, content_date FROM notice`;
     const result = await connection.execute(sql);
     if(result.rows.length > 0)
     {
