@@ -10,6 +10,9 @@ const upload = multer({ dest: 'uploads/image/' });
 const emailToAuthCode = {};
 const path = require('path');
 const fs = require('fs');
+
+const app = express();
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -20,10 +23,21 @@ const transporter = nodemailer.createTransport({
 
 const logFilePath = 'server_logs.txt';
 
-const app = express();
+const blockedIPs = ['203.230.13.2'];
+
+app.use((req, res, next) => {
+  const clientIP = req.connection.remoteAddress;
+  if (blockedIPs.includes(clientIP)) {
+    console.log(`${ip} 감지!`);
+    return res.status(403).send('Forbidden');
+  }
+  next();
+});
+
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 const port = 8090;
 
 const dbConfig = {
@@ -41,47 +55,7 @@ OracleDB.createPool({
 
 // Middleware to parse JSON request body
 app.use(express.json());
-
-app.get('/moms/ccyyhh', async (req, res) => {
-  try {
-    const now = new Date();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-
-     const ip = req.connection.remoteAddress; //client ip
-    // Connect to the database
-    const connection = await OracleDB.getConnection(dbConfig);
-
-    const result = await connection.execute(
-      `SELECT * FROM ccyyhh`
-    );
-
-    await connection.release();
-
-    const jsonData = [];
-    const columnNames = result.metaData.map((col) => col.name);
-    for (let row of result.rows) {
-    const obj = {};
-      for (let i = 0; i < columnNames.length; i++) {
-        obj[columnNames[i]] = row[i];
-      }
-      jsonData.push(obj);
-    }
-    res.send(jsonData);
-  
-  let log = `/moms/ccyyhh ->[ ${ip} ] ccyyhh 조회 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
-  fs.appendFile(logFilePath, log, (err) => {
-    if (err) throw err;
-    console.log(log); // 로그를 콘솔에 출력
-  });
-  } catch (err) {
-    console.error(err.message);
-  }
-});
-
+/*
 app.get('/moms/register-info', async (req, res) => {
   let log =``;
   try {
@@ -123,76 +97,7 @@ app.get('/moms/register-info', async (req, res) => {
     console.log(log); // 로그를 콘솔에 출력
   });
 });
-
-app.get('/moms/yysskk', async (req, res) => {
-  try {
-    // Connect to the database
-    const now = new Date();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-
-    const connection = await OracleDB.getConnection(dbConfig);
-
-    const result = await connection.execute(
-      `SELECT * FROM yysskk`
-    );
-
-    // Release the database connection
-    await connection.release();
-
-    // Convert the result to an array of objects and send it to the client
-    const jsonData = [];
-    const columnNames = result.metaData.map((col) => col.name);
-    for (let row of result.rows) {
-    const obj = {};
-      for (let i = 0; i < columnNames.length; i++) {
-        obj[columnNames[i]] = row[i];
-      }
-      jsonData.push(obj);
-    }
-    res.send(jsonData);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.post('/moms/ccyyhh/register', async (req, res) => {
-  try {
-    const now = new Date();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-
-    const { age, cmt } = req.body;
-    const ccyyhh = req.url.split('/').pop();
-    const ip = req.connection.remoteAddress; //client ip
-    // Oracle 데이터베이스 연결
-    const connection = await OracleDB.getConnection(dbConfig);
-    // ccyyhh 테이블에 데이터 삽입
-    const sql = `INSERT INTO ccyyhh(age, cmt) VALUES (:age, :cmt)`;
-    const bindParams = {
-      age: parseInt(age),
-      cmt: cmt
-    };
-    const result = await connection.execute(sql, bindParams, { autoCommit: true });
-
-  
-    let log = `/moms/ccyyhh/register ->[ ${ip} ] age-cmt 삽입 ${JSON.stringify(req.body)} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
-    fs.appendFile(logFilePath, log, (err) => {
-    if (err) throw err;
-    console.log(log); // 로그를 콘솔에 출력
-  });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Internal Server Error');
-  }
-});
+*/
 
 // 회원가입 요청
 app.post('/moms/register', async (req, res) => {
@@ -231,7 +136,6 @@ app.post('/moms/register', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-    const ip = req.connection.remoteAddress; //client ip
     console.error(err.message);
     res.status(500).send('Internal Server Error');
     log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -263,7 +167,7 @@ app.post('/moms/register/delete', async (req, res) => {
       clientNum: clientNum,
       pw: crypto.createHash('md5').update(pw).digest('hex')
     };
-    const result = await connection.execute(sql, bind, { autoCommit: true });
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
 
     console.log();
     if (result.rows.length > 0) {
@@ -427,6 +331,13 @@ app.post('/moms/find-id', async (req, res) => {
     }
     await connection.release();
   } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');s
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
     log += `/moms/find-id ->[ ${ip} ] -> [실패] 오류 발생 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -456,22 +367,30 @@ app.post('/moms/find-id/id', async (req, res) => {
     );
     const info = {
       success: true,
-      id: result.rows[0][0],    };
-    if(result.rows.length> 0)
+      id: result.rows[0][0]};
+    if(result.rows.length > 0)
     {
       log = `/moms/find-id/id ->[ ${ip} ] 아이디 반환 -> [성공] ${result.rows[0][0]}< ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     else{
       log = `/moms/find-id/id ->[ ${ip} ] 아이디 반환 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
+    await connection.release();
+    return res.end(JSON.stringify(info));
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');s
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
+    console.error(err);
+    log = `/moms/find-id/id ->[ ${ip} ] 아이디 반환 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
       console.log(log); // 로그를 콘솔에 출력
     });
-    await connection.release();
-    return res.end(JSON.stringify(info));
-  } catch (err) {
-    console.error(err);
     return res.status(500).json({ error: '아이디 반환 실패 ' });
   }
 });
@@ -677,8 +596,8 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
         clientNum: clientNum,
         diary_date: diary_date
       };
-    const options = { autoCommit: true };
-    const Sresult = await connection.execute(sql, binds, options);
+    
+    const Sresult = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     log += `/upload/images -> [ ${ip} ] -> `;
     if (!files) {
       log += `[실패] 이미지 없음 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
@@ -847,7 +766,6 @@ app.post('/moms/diary/timeline', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-    const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig); 
     console.error(err);
     return res.status(500).json({ error: '타임라인 요청 실패 ' });
@@ -1262,7 +1180,7 @@ app.post('/moms/notice', async (req, res) => {
 
     log +=`/moms/notice ->[ ${ip} ] 공지사항 조회 ->`
     const sql = `SELECT * FROM notice`;
-    const result = await connection.execute(sql);
+    const result = await connection.execute(sql ,[] , { outFormat: OracleDB.OBJECT });
     if(result.rows.length > 0)
     {
       res.status(200).json(result.rows);
@@ -1270,6 +1188,13 @@ app.post('/moms/notice', async (req, res) => {
     }
   } 
   catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
     console.error(err.message);
     res.status(500).send('서버 오류');
     log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1298,14 +1223,22 @@ app.post('/moms/notice-info', async (req, res) => {
 
     log +=`/moms/notice-info ->[ ${ip} ] 공지사항 세부 사항 조회 ->`
     const sql = `SELECT title, content, content_date FROM notice`;
-    const result = await connection.execute(sql);
+    const result = await connection.execute(sql, [], { outFormat: OracleDB.OBJECT });
     if(result.rows.length > 0)
     {
+      console.log(result.rows)
       res.status(200).json(result.rows);
       log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
   } 
   catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');s
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
     console.error(err.message);
     res.status(500).send('서버 오류');
     log +=` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1315,6 +1248,7 @@ app.post('/moms/notice-info', async (req, res) => {
     console.log(log); // 로그를 콘솔에 출력
   });
 });
+
 //아기정보 등록
 //입력 값 babyName, expectedDate, dadName, momName, clientNum
 app.post('/moms/baby/register', async (req, res) => {
@@ -1339,7 +1273,7 @@ app.post('/moms/baby/register', async (req, res) => {
       momName: momName,
       clientNum: clientNum
     };
-    const result = await connection.execute(sql, bind, { autoCommit: true });
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     if (result.rowsAffected > 0) {
       res.status(200).send(`아기 정보 입력 성공`);
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1381,7 +1315,7 @@ app.post('/moms/baby/delete', async (req, res) => {
       babyName: babyName,
       clientNum: clientNum
     };
-    const result = await connection.execute(sql, bind, { autoCommit: true });
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     if (result.rowsAffected > 0) {
       res.status(200).send(`아기 정보 삭제 성공`);
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1402,6 +1336,7 @@ app.post('/moms/baby/delete', async (req, res) => {
     console.log(log);
   });
 });
+
 //아기 정보 반환
 //입력 값 clientNum
 //반환 값 babyNo, babyName, expectedDate, dadName, momName, clientNum
@@ -1421,10 +1356,55 @@ app.post('/moms/baby', async (req, res) => {
     log += `/moms/baby -> [${ip}] 아기 정보 조회 (clientNum: ${clientNum}) ->`;
     const sql = `SELECT babyNo, babyName, expectedDate, dadName, momName FROM baby WHERE clientNum = :clientNum`;
     const bind = { clientNum };
-    const result = await connection.execute(sql, bind);
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
 
     if (result.rows.length > 0) {
-      res.status(200).json(result.rows[0]);
+      res.status(200).json(result.rows);
+      log += ` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    } else {
+      res.status(404).send('등록된 아기 정보가 없습니다.');
+      log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    }
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    console.error(err.message);
+    res.status(500).send('서버 오류');
+    log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+  }
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+});
+
+//아이정보 세부사항
+//입력값 CLIENTNUM, BABYNO
+//반환값 BABYNAME, EXPECTEDDATE, DADNAME, MOMNAME
+app.post('/moms/baby-info', async (req, res) => {
+  let log = ``;
+  try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress; //client ip
+    const { clientNum, babyNo } = req.body;
+    const connection = await OracleDB.getConnection(dbConfig);
+
+    log += `/moms/baby-info -> [${ip}] 아기 정보 세부 조회 (clientNum: ${clientNum, babyNo}) ->`;
+    const sql = `SELECT babyName, expectedDate, dadName, momName FROM baby WHERE clientNum = :clientNum and babyNo = :babyNo`;
+    const bind = { clientNum, babyNo };
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+
+    if (result.rows.length > 0) {
+      res.status(200).json(result.rows);
       log += ` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     } else {
       res.status(404).send('등록된 아기 정보가 없습니다.');
@@ -1479,7 +1459,6 @@ app.post('/moms/baby/modify', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-    const ip = req.connection.remoteAddress; //client ip
     console.error(err.message);
     res.status(500).send('서버 오류');
     log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1614,6 +1593,50 @@ app.post('/moms/pregnancy-week', async (req, res) => {
   fs.appendFile(logFilePath, log, (err) => {
     if (err) throw err;
     console.log(log); // 로그를 콘솔에 출력
+  });
+});
+//채팅 입력
+//입력 값 clientNum, dialog, imageURL
+//반환 값
+app.post('/moms/chat/insert', async (req, res) => {
+  let log = '';
+  try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress;
+    const { clientNum, dialog, imageURL } = req.body;
+    const connection = await OracleDB.getConnection(dbConfig);
+
+    log += `/moms/chat/insert -> [ ${ip} ] 채팅 입력 ${JSON.stringify(req.body)} -> `;
+    const sql = `INSERT INTO chat (clientNum, dialog, imageURL) VALUES (:clientNum, :dialog, :imageURL)`;
+    const bind = {
+      clientNum: clientNum,
+      dialog: dialog,
+      imageURL: imageURL
+    };
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+    if (result.rowsAffected > 0) {
+      res.status(200).send(``);
+      log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    }
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    console.error(err.message);
+    res.status(500).send('서버 오류');
+    log += `[실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+  }
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log);
   });
 });
 
