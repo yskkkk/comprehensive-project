@@ -1273,7 +1273,7 @@ app.post('/moms/baby/register', async (req, res) => {
       momName: momName,
       clientNum: clientNum
     };
-    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+    const result = await connection.execute(sql, bind, { autoCommit: true });
     if (result.rowsAffected > 0) {
       res.status(200).send(`아기 정보 입력 성공`);
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1595,9 +1595,12 @@ app.post('/moms/pregnancy-week', async (req, res) => {
     console.log(log); // 로그를 콘솔에 출력
   });
 });
-//채팅 입력
-//입력 값 clientNum, dialog, imageURL
-//반환 값
+
+
+// 채팅 입력
+// 입력 값 clientNum, dialog, imageURL
+// 반환 값
+// http://182.219.226.49/moms/chat/insert
 app.post('/moms/chat/insert', async (req, res) => {
   let log = '';
   try {
@@ -1612,15 +1615,16 @@ app.post('/moms/chat/insert', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log += `/moms/chat/insert -> [ ${ip} ] 채팅 입력 ${JSON.stringify(req.body)} -> `;
-    const sql = `INSERT INTO chat (clientNum, dialog, imageURL) VALUES (:clientNum, :dialog, :imageURL)`;
+    const sql = `INSERT INTO chat(clientNum, dialog, imageURL, chat_date) VALUES(:clientNum, :dialog, :imageURL, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi'))`;
     const bind = {
-      clientNum: clientNum,
+      clientNum: parseInt(clientNum),
       dialog: dialog,
       imageURL: imageURL
     };
-    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+    const result = await connection.execute(sql, bind,{ autoCommit: true });
+  
     if (result.rowsAffected > 0) {
-      res.status(200).send(``);
+      res.status(200).send(`채팅 전송 성공`);
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
   } catch (err) {
@@ -1639,7 +1643,6 @@ app.post('/moms/chat/insert', async (req, res) => {
     console.log(log);
   });
 });
-
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
