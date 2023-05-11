@@ -162,24 +162,30 @@ app.post('/moms/register/delete', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log += `/moms/register/delete -> [ ${ip} ] 회원탈퇴 요청 ${JSON.stringify(req.body)} -> `;
-    const sql = `select clientNum from register where clientNum = :clientNum and pw = :pw`;
+    const sql = `select clientNum from register where (clientNum = :clientNum) and (pw = :pw)`;
     const bind = {
-      clientNum: clientNum,
+      clientNum: parseInt(clientNum),
       pw: crypto.createHash('md5').update(pw).digest('hex')
     };
-    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
-
-    console.log();
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.ARRAY });
+    console.log(result.rows[0][0]);
     if (result.rows.length > 0) {
-      const sql2 = `delete from register where clientNum = :clientNum`;
-      const bind2 = {
-      clientNum: result.rows[0][0]
-    };
-    const result2 = await connection.execute(sql2, bind2, { autoCommit: true });
+      const sql2 = `delete from diary where clientNum = :clientNum`;
+      const sql3 = `delete from baby where clientNum = :clientNum`;
+      const sql4 = `delete from register where clientNum = :clientNum`;
+      const bind = {clientNum: result.rows[0][0]};
+      await connection.execute(sql2, bind, { autoCommit: true });
+      console.log(`1`);
+      await connection.execute(sql3, bind, { autoCommit: true });
+      console.log(`2`);
+      result2 = connection.execute(sql4, bind, { autoCommit: true });
+      console.log(`3`);
     if (result2.rowsAffected > 0) {
+      console.log(result.rows[0][0]);
       res.status(200).send(`회원 탈퇴 성공`);
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }else{
+      
       res.status(500).send(`회원 탈퇴 실패`);
       log += `[실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
@@ -187,8 +193,10 @@ app.post('/moms/register/delete', async (req, res) => {
       res.status(500).send(`회원 탈퇴 실패`);
       log += `[실패] 일치하지않는 비밀번호 입니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
-
-    
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log);
+    });
   } catch (err) {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -333,7 +341,7 @@ app.post('/moms/find-id', async (req, res) => {
   } catch (err) {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');s
+    const day = now.getDate().toString().padStart(2, '0');
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
@@ -380,7 +388,7 @@ app.post('/moms/find-id/id', async (req, res) => {
   } catch (err) {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');s
+    const day = now.getDate().toString().padStart(2, '0');
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
@@ -717,6 +725,7 @@ app.post('/moms/diary', async (req, res) => {
 //반환값 diary_date, imageURL
 app.post('/moms/diary/timeline', async (req, res) => {
   const clientNum = parseInt(req.body.clientNum);
+  let log =``;
   try {
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig); 
@@ -737,9 +746,15 @@ app.post('/moms/diary/timeline', async (req, res) => {
       const info = {
         success: false
       };
+      log += `/moms/diary/timeline ->[ ${ip} ] 타임라인 요청 -> [실패] clientNum = '${clientNum}' 저장된 정보가 없습니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+      fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      await connection.release();
       return res.end(JSON.stringify(info));
     }
-    
+    /*
     const info = {
       success: true,
       data: result.rows.map(row => ({
@@ -747,9 +762,8 @@ app.post('/moms/diary/timeline', async (req, res) => {
         imageURL: row.IMAGEURL
       }))
     };
-    
-  
-    const log = `/moms/diary/timeline ->[ ${ip} ] 타임라인 요청 -> [성공] ${clientNum} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    */
+    log += `/moms/diary/timeline ->[ ${ip} ] 타임라인 요청 -> [성공] ${clientNum} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
       console.log(log); // 로그를 콘솔에 출력
@@ -768,6 +782,10 @@ app.post('/moms/diary/timeline', async (req, res) => {
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const connection = await OracleDB.getConnection(dbConfig); 
     console.error(err);
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
     return res.status(500).json({ error: '타임라인 요청 실패 ' });
   }
 });
@@ -1214,7 +1232,7 @@ app.post('/moms/notice-info', async (req, res) => {
   try {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');s
+    const day = now.getDate().toString().padStart(2, '0');
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
@@ -1234,7 +1252,7 @@ app.post('/moms/notice-info', async (req, res) => {
   catch (err) {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');s
+    const day = now.getDate().toString().padStart(2, '0');
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
@@ -1315,7 +1333,7 @@ app.post('/moms/baby/delete', async (req, res) => {
       babyName: babyName,
       clientNum: clientNum
     };
-    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+    const result = await connection.execute(sql, bind, {autoCommit: true });
     if (result.rowsAffected > 0) {
       res.status(200).send(`아기 정보 삭제 성공`);
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1385,6 +1403,7 @@ app.post('/moms/baby', async (req, res) => {
 //아이정보 세부사항
 //입력값 CLIENTNUM, BABYNO
 //반환값 BABYNAME, EXPECTEDDATE, DADNAME, MOMNAME
+// http://182.219.226.49/moms/baby-info
 app.post('/moms/baby-info', async (req, res) => {
   let log = ``;
   try {
@@ -1411,6 +1430,12 @@ app.post('/moms/baby-info', async (req, res) => {
       log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
   } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
     console.error(err.message);
     res.status(500).send('서버 오류');
     log += ` [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -1571,13 +1596,17 @@ app.post('/moms/pregnancy-week', async (req, res) => {
           week: Math.ceil((moment(today, 'YYYY-MM-DD').diff(moment(moment(row.EXPECTEDDATE, 'YYYY-MM-DD').subtract(280, 'days').format('YYYY-MM-DD'), 'YYYY-MM-DD'), 'days')+1)/7)
        }));
        console.log(babies);
-        res.status(200).send(babies);
-        log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+      log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
       }
     else {
       res.status(200).send(`아이의 정보를 찾을 수 없습니다.`);
       log +=` [실패] 일치하는 아이의 정보가 없습니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+    return res.end(JSON.stringify(babies));
   } 
   catch (err) {
     const now = new Date();
