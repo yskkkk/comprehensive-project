@@ -1706,7 +1706,7 @@ app.post('/moms/pregnancy-week', async (req, res) => {
 
 // 아이, 산모 주차별 정보제공
 // 입력값 week, moms || baby
-// 반환값 week, info
+// 반환값 info
 // http://182.219.226.49/moms/week-info-symptom
 app.post('/moms/week-info-symptom', async (req, res) => {
   const {week, division} = req.body;
@@ -1719,26 +1719,28 @@ app.post('/moms/week-info-symptom', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-    const result = await connection.execute( 
-      `SELECT info FROM symptom_info WHERE week = :week and division = :division`,
-      [parseInt(week), division]
-    );
+    sql = `SELECT info FROM symptom_info WHERE week = :week and division = :division order by info`;
+    const bind = {
+      week: parseInt(week),
+      division: division
+    };
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+
     if (result.rows.length < 1) {
       const info = {
         success: false
       };
       return res.end(JSON.stringify(info));
     }
-    const info = {
-      success: true,
-      info: result.rows[0][0],
-    };
-    if(result.rows.length > 0)
+    else if(result.rows.length > 0)
     {
-      log = `/moms/week-info ->[ ${ip} ] ${week}주차 증상 요청 -> [성공] ${clientNum}, ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      const info = result.rows.map(row => ({
+        info: row.INFO
+     }));
+      log = `/moms/week-info-symptom ->[ ${ip} ] ${week}주차 증상 요청 -> [성공] ${clientNum}, ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     else{
-      log = `/moms/week-info ->[ ${ip} ] ${week}주차 증상 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log = `/moms/week-info-symptom ->[ ${ip} ] ${week}주차 증상 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
@@ -1762,7 +1764,7 @@ app.post('/moms/week-info-symptom', async (req, res) => {
 
 // 아이, 산모 주차별 정보제공
 // 입력값 week, moms || baby
-// 반환값 week, info
+// 반환값 info
 // http://182.219.226.49/moms/week-info-characteristic
 app.post('/moms/week-info-characteristic', async (req, res) => {
   const {week, division} = req.body;
@@ -1775,26 +1777,27 @@ app.post('/moms/week-info-characteristic', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-    const result = await connection.execute( 
-      `SELECT info FROM characteristic_info WHERE week = :week and division = :division`,
-      [parseInt(week), division]
-    );
+    sql = `SELECT info FROM characteristic_info WHERE week = :week and division = :division order by info`;
+    const bind = {
+      week: parseInt(week),
+      division: division
+    };
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     if (result.rows.length < 1) {
       const info = {
         success: false
       };
       return res.end(JSON.stringify(info));
     }
-    const info = {
-      success: true,
-      info: result.rows[0][0],
-    };
-    if(result.rows.length > 0)
+    else if(result.rows.length > 0)
     {
-      log = `/moms/week-info ->[ ${ip} ] ${week}주차 특징 요청 -> [성공] ${clientNum}, ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      const info = result.rows.map(row => ({
+        info: row.INFO
+     }));
+      log = `/moms/week-info-characteristic ->[ ${ip} ] ${week}주차 특징 요청 -> [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     else{
-      log = `/moms/week-info ->[ ${ip} ] ${week}주차 특징 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log = `/moms/week-info-characteristic ->[ ${ip} ] ${week}주차 특징 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
@@ -1812,7 +1815,12 @@ app.post('/moms/week-info-characteristic', async (req, res) => {
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig); 
     console.error(err);
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
     return res.status(500).json({ error: '주차별 증상 요청 실패 ' });
+    
   }
 });
 
