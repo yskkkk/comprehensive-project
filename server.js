@@ -21,6 +21,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+
 const logFilePath = 'server_logs.txt';
 
 const blockedIPs = ['203.230.13.2'];
@@ -55,6 +56,14 @@ OracleDB.createPool({
 
 // Middleware to parse JSON request body
 app.use(express.json());
+
+app.post('/webhook', (req, res) => {
+  // Webhook 이벤트 처리 로직을 여기에 작성합니다.
+  console.log('Webhook received:', req.body);
+
+  // 필요한 응답을 보냅니다.
+  res.status(200).send('Webhook received');
+});
 /*
 app.get('/moms/register-info', async (req, res) => {
   let log =``;
@@ -98,7 +107,9 @@ app.get('/moms/register-info', async (req, res) => {
   });
 });
 */
-
+app.get('/', (req, res) => {
+  res.send('Azure 시작! my-vm');
+});
 // 회원가입 요청
 app.post('/moms/register', async (req, res) => {
   let log =`` ;
@@ -173,7 +184,6 @@ app.post('/moms/register/delete', async (req, res) => {
       await connection.execute(sql2, bind, { autoCommit: true });
       await connection.execute(sql3, bind, { autoCommit: true });
       const result2 = await connection.execute(sql4, bind, { autoCommit: true });
-      console.log(result2.rowsAffected);
     if (result2.rowsAffected > 0) {
       res.status(200).send(`회원 탈퇴 성공`);
       log += `[성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -471,7 +481,73 @@ fs.appendFile(logFilePath, log, (err) => {
 });
 });
 
-//비밀번호 수정
+//비밀번호 수정 로그인 후
+// 입력 값 clientNum, pw, changepw
+// http://182.219.226.49/moms/change-pw/pw/afterlogin
+app.post('/moms/change-pw/pw/afterlogin', async (req, res) => {
+  const ip = req.connection.remoteAddress;
+  const now = new Date();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const seconds = now.getSeconds().toString().padStart(2, '0');
+  const {clientNum, pw, changepw} = req.body;
+
+  const connection = await OracleDB.getConnection(dbConfig);
+  let log = ``;
+
+  try{
+
+  const checksql = "select * from register where clientNum = :clienNum and pw = :pw";
+  const bind = {
+    clientNum: parseInt(clientNum),
+    pw: crypto.createHash('md5').update(pw).digest('hex')
+  }
+  const check = await connection.execute(checksql, bind, { outFormat: OracleDB.OBJECT });
+  if(check.rowsAffected > 0 ){
+    const sql = `UPDATE register SET pw = :pw where clientNum= :clientNum`;
+    const bindParams = {
+      pw: crypto.createHash('md5').update(changepw).digest('hex'),
+      clientNum: parseInt(clientNum)
+    };
+    const result = await connection.execute(sql, bindParams, { autoCommit: true });
+       
+    if (result.rowsAffected > 0){
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      const info = {
+         success: true,
+         pw: 'change success'
+      };
+        log += `/moms/change-pw/pw/afterlogin ->[ ${ip} ] -> 비밀번호 변경 [성공] ${info['pw']}  < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+        fs.appendFile(logFilePath, log, (err) => {
+          if (err) throw err;
+          console.log(log); // 로그를 콘솔에 출력
+        });
+        res.end(JSON.stringify(info));
+      }
+    else if(!pw || !changepw){
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      const info = { success: false };
+      log += `/moms/change-pw/pw/afterlogin ->[ ${ip} ] -> 비밀번호 변경 [실패] pw값이 비어있습니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      fs.appendFile(logFilePath, log, (err) => {
+        if (err) throw err;
+        console.log(log); // 로그를 콘솔에 출력
+      });
+      res.end(JSON.stringify(info));
+    }
+  }
+  
+}catch(error){
+  console.error(err);
+  res.status(500).send('서버오류');
+  }
+  fs.appendFile(logFilePath, log, (err) => {
+    if (err) throw err;
+    console.log(log); // 로그를 콘솔에 출력
+  });
+});
+//비밀번호 수정 로그인 전
 app.post('/moms/change-pw/pw', async (req, res) => {
   const ip = req.connection.remoteAddress;
   const now = new Date();
@@ -870,8 +946,6 @@ app.post('/moms/sendemail', async(req, res) => {
   const phone = req.body.phone;
   const email = req.body.email;
   emailToAuthCode[email] = rN;
-  log += `/moms/sendmail ->[ ${ip} ] 회원가입 인증 메일 전송`;
-
   // 이메일 주소의 유효성 검사
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     log+=`/moms/sendemail 이메일 전송 [실패] 잘못된 이메일 주소입니다. < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
@@ -881,6 +955,7 @@ app.post('/moms/sendemail', async(req, res) => {
     });
     return res.status(400).send('잘못된 이메일 주소입니다.');
   }
+  log += `/moms/sendmail ->[ ${ip} ] 회원가입 인증 메일 전송`;
   const connection = await OracleDB.getConnection(dbConfig);
 
   const result1 = await connection.execute(`SELECT * FROM register WHERE email = :email`, [email]);
@@ -1629,6 +1704,117 @@ app.post('/moms/pregnancy-week', async (req, res) => {
   });
 });
 
+// 아이, 산모 주차별 정보제공
+// 입력값 week, moms || baby
+// 반환값 week, info
+// http://182.219.226.49/moms/week-info-symptom
+app.post('/moms/week-info-symptom', async (req, res) => {
+  const {week, division} = req.body;
+  const connection = await OracleDB.getConnection();
+  try {
+    const ip = req.connection.remoteAddress;
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const result = await connection.execute( 
+      `SELECT info FROM symptom_info WHERE week = :week and division = :division`,
+      [parseInt(week), division]
+    );
+    if (result.rows.length < 1) {
+      const info = {
+        success: false
+      };
+      return res.end(JSON.stringify(info));
+    }
+    const info = {
+      success: true,
+      info: result.rows[0][0],
+    };
+    if(result.rows.length > 0)
+    {
+      log = `/moms/week-info ->[ ${ip} ] ${week}주차 증상 요청 -> [성공] ${clientNum}, ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    else{
+      log = `/moms/week-info ->[ ${ip} ] ${week}주차 증상 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+    await connection.release();
+    return res.end(JSON.stringify(info));
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress;
+    const connection = await OracleDB.getConnection(dbConfig); 
+    console.error(err);
+    return res.status(500).json({ error: '주차별 증상 요청 실패 ' });
+  }
+});
+
+// 아이, 산모 주차별 정보제공
+// 입력값 week, moms || baby
+// 반환값 week, info
+// http://182.219.226.49/moms/week-info-characteristic
+app.post('/moms/week-info-characteristic', async (req, res) => {
+  const {week, division} = req.body;
+  const connection = await OracleDB.getConnection();
+  try {
+    const ip = req.connection.remoteAddress;
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const result = await connection.execute( 
+      `SELECT info FROM characteristic_info WHERE week = :week and division = :division`,
+      [parseInt(week), division]
+    );
+    if (result.rows.length < 1) {
+      const info = {
+        success: false
+      };
+      return res.end(JSON.stringify(info));
+    }
+    const info = {
+      success: true,
+      info: result.rows[0][0],
+    };
+    if(result.rows.length > 0)
+    {
+      log = `/moms/week-info ->[ ${ip} ] ${week}주차 특징 요청 -> [성공] ${clientNum}, ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    else{
+      log = `/moms/week-info ->[ ${ip} ] ${week}주차 특징 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+    await connection.release();
+    return res.end(JSON.stringify(info));
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress;
+    const connection = await OracleDB.getConnection(dbConfig); 
+    console.error(err);
+    return res.status(500).json({ error: '주차별 증상 요청 실패 ' });
+  }
+});
 
 // 채팅 입력
 // 입력 값 clientNum, dialog, imageURL
