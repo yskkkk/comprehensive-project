@@ -1,4 +1,5 @@
 const express = require('express');
+const dialogflow = require('dialogflow');
 const { json } = require('express');
 const OracleDB = require('oracledb');
 const crypto = require('crypto');
@@ -6,6 +7,7 @@ const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const multer  = require('multer');
 const moment = require('moment');
+const projectId = 'mom-s-care-hgrt';
 const upload = multer({ dest: 'uploads/image/' });
 const emailToAuthCode = {};
 const path = require('path');
@@ -21,6 +23,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const sessionClient = new dialogflow.SessionsClient({
+  keyFilename: 'C:\\Users\\samro\\mom-s-care-hgrt-09f5297b2cdf.json'
+});
 
 const logFilePath = 'server_logs.txt';
 
@@ -500,12 +505,13 @@ app.post('/moms/change-pw/pw/afterlogin', async (req, res) => {
   let log = ``;
 
   try{
-
-  const checksql = "select * from register where clientNum = :clienNum and pw = :pw";
+    
+  const checksql = `select * from register where clientNum = :clientNum and pw = :pw`;
   const bind = {
     clientNum: parseInt(clientNum),
     pw: crypto.createHash('md5').update(pw).digest('hex')
   }
+
   const check = await connection.execute(checksql, bind, { outFormat: OracleDB.OBJECT });
   if(check.rows.length > 0 ){
     const sql = `UPDATE register SET pw = :pw where clientNum= :clientNum`;
@@ -1712,7 +1718,7 @@ app.post('/moms/pregnancy-week', async (req, res) => {
   });
 });
 
-// 아이, 산모 주차별 정보제공
+// 아이 주차별 정보제공
 // 입력값 week
 // 반환값 info
 // http://182.219.226.49/moms/week-info-baby
@@ -1779,7 +1785,7 @@ app.post('/moms/week-info-baby', async (req, res) => {
   }
 });
 
-// 아이, 산모 주차별 정보제공
+// 산모 주차별 정보제공
 // 입력값 week
 // 반환값 info
 // http://182.219.226.49/moms/week-info-moms
@@ -1845,7 +1851,7 @@ app.post('/moms/week-info-moms', async (req, res) => {
   }
 });
 
-// 아이, 산모 주차별 정보제공
+// 해야할 일 주차별 정보제공
 // 입력값 week
 // 반환값 info
 // http://182.219.226.49/moms/week-info-todo
@@ -1913,7 +1919,7 @@ app.post('/moms/week-info-todo', async (req, res) => {
 
 
 // 채팅 입력
-// 입력 값 clientNum, dialog, imageURL
+// 입력 값 clientNum, dialog
 // 반환 값
 // http://182.219.226.49/moms/chat/insert
 app.post('/moms/chat/insert', async (req, res) => {
@@ -1926,15 +1932,14 @@ app.post('/moms/chat/insert', async (req, res) => {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const ip = req.connection.remoteAddress;
-    const { clientNum, dialog, imageURL } = req.body;
+    const { clientNum, dialog} = req.body;
     const connection = await OracleDB.getConnection(dbConfig);
 
     log += `/moms/chat/insert -> [ ${ip} ] 채팅 입력 ${JSON.stringify(req.body)} -> `;
-    const sql = `INSERT INTO chat(clientNum, dialog, imageURL, chat_date) VALUES(:clientNum, :dialog, :imageURL, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi'))`;
+    const sql = `INSERT INTO chat(clientNum, who, DIALOG, CHAT_DATE) VALUES(:clientNum, 1,:dialog, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi'))`;
     const bind = {
       clientNum: parseInt(clientNum),
-      dialog: dialog,
-      imageURL: imageURL
+      dialog: dialog
     };
     const result = await connection.execute(sql, bind,{ autoCommit: true });
   
@@ -1958,6 +1963,100 @@ app.post('/moms/chat/insert', async (req, res) => {
     console.log(log);
   });
 });
+
+// 챗봇
+// 입력값 clientNum, who, dialog
+// 반환값 
+// http://182.219.226.49/moms/chat/dialogflow
+app.get('/moms/chat/dialogflow', async (req, res) => {
+  let log = '';
+  try {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    //const { clientNum, dialog } = req.body;
+    const clientNum= req.query.c;
+    const dialog= req.query.d;
+    const sessionPath = sessionClient.sessionPath(projectId, clientNum);
+    const ip = req.connection.remoteAddress;
+    const connection = await OracleDB.getConnection(dbConfig);
+
+    const request = {
+      session: sessionPath,
+      queryInput: {
+        text: {
+          text: dialog,
+          languageCode: 'ko' // 챗봇의 언어 설정에 따라 변경
+        },
+      },
+    };
+
+    if(clientNum.length && dialog.length){
+    const sql = `INSERT INTO chat(clientNum, who, dialog, chat_date) VALUES(:clientNum, 1,:dialog, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi'))`; //사람 -> 챗봇
+    const bind = {
+      clientNum: parseInt(clientNum),
+      dialog: dialog
+    };
+    const sqlresult = await connection.execute(sql, bind,{ autoCommit: true });
+  
+    if (sqlresult.rowsAffected > 0)
+    {
+      log += `/moms/chat/dialogflow -> [ ${ip} ] 유저 [${clientNum}] -> 챗봇 [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      const responses = await sessionClient.detectIntent(request);
+      const result = responses[0].queryResult;
+      const botResponse = result.fulfillmentText;
+    
+    if (responses.length > 0)
+    {
+      const sql2 = `INSERT INTO chat(clientNum, who, dialog, chat_date) VALUES(1, :who, :dialog, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi'))`; //챗봇 -> 사람
+    const bind2 = {
+      who: parseInt(clientNum),
+      dialog: botResponse,
+    };
+    const sqlresult2 = await connection.execute(sql2, bind2,{ autoCommit: true });
+    
+    if (sqlresult2.rowsAffected > 0)
+    {
+      log += `/moms/chat/dialogflow -> [ ${ip} ] 챗봇 -> 유저 [${clientNum}] [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+      //return res.send(botResponse);
+      res.send(botResponse);
+    }
+    else
+    {
+     // return res.send(`서버 오류.`);
+     res.send(`지정된 대화가 없습니다.`);
+    }
+  }
+  }else
+  {
+    //값이 제대로 안들어옴
+    res.end('값이 비어있습니다.');
+  } 
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log);
+    });
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    console.error(err.message);
+    res.status(500).send('서버 오류');
+    log += `[실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log);
+    });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
