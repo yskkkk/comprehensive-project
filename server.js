@@ -1965,10 +1965,10 @@ app.post('/moms/chat/insert', async (req, res) => {
 });
 
 // 챗봇
-// 입력값 clientNum, who, dialog
+// 입력값 clientNum, dialog
 // 반환값 
 // http://182.219.226.49/moms/chat/dialogflow
-app.get('/moms/chat/dialogflow', async (req, res) => {
+app.post('/moms/chat/dialogflow', async (req, res) => {
   let log = '';
   try {
     const now = new Date();
@@ -1977,9 +1977,9 @@ app.get('/moms/chat/dialogflow', async (req, res) => {
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-    //const { clientNum, dialog } = req.body;
-    const clientNum= req.query.c;
-    const dialog= req.query.d;
+    const sql2 = `INSERT INTO chat(clientNum, who, dialog, chat_date) VALUES(1, :who, :dialog, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi'))`; //챗봇 -> 사람
+    const { clientNum, dialog } = req.body;
+
     const sessionPath = sessionClient.sessionPath(projectId, clientNum);
     const ip = req.connection.remoteAddress;
     const connection = await OracleDB.getConnection(dbConfig);
@@ -2004,15 +2004,13 @@ app.get('/moms/chat/dialogflow', async (req, res) => {
   
     if (sqlresult.rowsAffected > 0)
     {
-      log += `/moms/chat/dialogflow -> [ ${ip} ] 유저 [${clientNum}] -> 챗봇 [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log += `/moms/chat/dialogflow -> [ ${ip} ] [${clientNum}] -> 챗봇 [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
       const responses = await sessionClient.detectIntent(request);
       const result = responses[0].queryResult;
       const botResponse = result.fulfillmentText;
-    
-    if (responses.length > 0)
+    if (botResponse.length > 0)
     {
-      const sql2 = `INSERT INTO chat(clientNum, who, dialog, chat_date) VALUES(1, :who, :dialog, TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi'))`; //챗봇 -> 사람
-    const bind2 = {
+      const bind2 = {
       who: parseInt(clientNum),
       dialog: botResponse,
     };
@@ -2020,15 +2018,21 @@ app.get('/moms/chat/dialogflow', async (req, res) => {
     
     if (sqlresult2.rowsAffected > 0)
     {
-      log += `/moms/chat/dialogflow -> [ ${ip} ] 챗봇 -> 유저 [${clientNum}] [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+      log += `/moms/chat/dialogflow -> [ ${ip} ] 챗봇 -> [${clientNum}] [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+         //return res.send(botResponse);
+         res.end(botResponse);
     }
-      //return res.send(botResponse);
-      res.send(botResponse);
     }
     else
     {
+      const bind2 = {
+        who: parseInt(clientNum),
+        dialog:'아직 모르는 대화에요.'
+      };
+      const sqlresult2 = await connection.execute(sql2, bind2,{ autoCommit: true });
      // return res.send(`서버 오류.`);
-     res.send(`지정된 대화가 없습니다.`);
+     res.end(`아직 모르는 대화에요..`);
+     log += `/moms/chat/dialogflow -> [ ${ip} ] 챗봇 -> [${clientNum}] [실패] 학습되지 않은 주제 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
   }
   }else
