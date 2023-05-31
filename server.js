@@ -679,8 +679,8 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
         clientNum: clientNum,
         diary_date: diary_date
       };
-    
-    const Sresult = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+      const options = { autoCommit: true };
+      const Sresult = await connection.execute(sql, binds, options);
     log += `/upload/images -> [ ${ip} ] -> `;
     if (!files) {
       log += `[실패] 이미지 없음 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
@@ -689,7 +689,6 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
         if (err) throw err;
         console.log(log); // 로그를 콘솔에 출력
       });
-      await connection.release();
       return;
     }else{
       const filePaths = files.map(file => file.path);
@@ -704,8 +703,7 @@ app.post('/upload/images', upload.array('images', 10), async (req, res) => {
           console.log(log); // 로그를 콘솔에 출력
         });
         log=``;
-      
-    
+
         const sql2 = `UPDATE diary SET imageURL = :fileNames WHERE diaryNo = :diaryNo`;
         const binds2 = {
           fileNames: fileNames,
@@ -1970,6 +1968,7 @@ app.post('/moms/chat/insert', async (req, res) => {
 // http://182.219.226.49/moms/chat/dialogflow
 app.post('/moms/chat/dialogflow', async (req, res) => {
   let log = '';
+  
   try {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -2019,8 +2018,11 @@ app.post('/moms/chat/dialogflow', async (req, res) => {
     if (sqlresult2.rowsAffected > 0)
     {
       log += `/moms/chat/dialogflow -> [ ${ip} ] 챗봇 -> [${clientNum}] [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
-         //return res.send(botResponse);
-         res.end(botResponse);
+
+         
+         const info = {message: botResponse};
+         res.end(JSON.stringify(info));
+         
     }
     }
     else
@@ -2031,7 +2033,9 @@ app.post('/moms/chat/dialogflow', async (req, res) => {
       };
       const sqlresult2 = await connection.execute(sql2, bind2,{ autoCommit: true });
      // return res.send(`서버 오류.`);
-     res.end(`아직 모르는 대화에요..`);
+    
+     const info = {message: `아직 모르는 대화에요..`};
+     res.end(JSON.stringify(info));
      log += `/moms/chat/dialogflow -> [ ${ip} ] 챗봇 -> [${clientNum}] [실패] 학습되지 않은 주제 < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
     }
   }
@@ -2039,6 +2043,8 @@ app.post('/moms/chat/dialogflow', async (req, res) => {
   {
     //값이 제대로 안들어옴
     res.end('값이 비어있습니다.');
+    const info = {message: '값이 비어있습니다'};
+    res.end(JSON.stringify(info));
   } 
     fs.appendFile(logFilePath, log, (err) => {
       if (err) throw err;
@@ -2061,6 +2067,112 @@ app.post('/moms/chat/dialogflow', async (req, res) => {
   }
 });
 
+//채팅 목록
+// 입력값 clientNum
+// http://182.219.226.49/moms/chat/list
+app.post('/moms/chat/list', async (req, res) => {
+  const {clientNumm, chat_date} = req.body;
+  const connection = await OracleDB.getConnection();
+ 
+  try {
+    const ip = req.connection.remoteAddress;
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const result = await connection.execute( 
+      `select distinct substr(chat_date,0,10) from chat where clientNum=:clientNum`,
+      [clientNum]
+    );
+    if (result.rows.length < 1) {
+      const info = {
+        success: false
+      };
+      await connection.release();
+      return res.end(JSON.stringify(info));
+    }
+    const info = {
+      success: true,
+      content: result.rows[0][0],
+      imageURL: result.rows[0][1]
+    };
+    if(result.rows.length > 0)
+    {
+      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [성공] ${clientNum}, ${diary_date} < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    else{
+      log = `/moms/diary ->[ ${ip} ] 다이어리 요청 -> [실패] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`
+    }
+    fs.appendFile(logFilePath, log, (err) => {
+      if (err) throw err;
+      console.log(log); // 로그를 콘솔에 출력
+    });
+    await connection.release();
+    return res.end(JSON.stringify(info));
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress;
+    const connection = await OracleDB.getConnection(dbConfig); 
+    console.error(err);
+    await connection.release();
+    return res.status(500).json({ error: '다이어리 요청 실패 ' });
+  }
+});
+//채팅 내역
+// 입력값 clientNum, chat_date
+// http://182.219.226.49/moms/chat/room
+app.get('/moms/chat/list', async (req, res) => {
+  //const {clientNumm, chat_date} = req.body;
+  const connection = await OracleDB.getConnection();
+ const clientNum = res.query.c;
+ const chat_date=req.query.d;
+ 
+  try {
+    const ip = req.connection.remoteAddress;
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    
+    const sql =`select * from chat where clientNum =: clientNum and chat_date between :chat_date and :chat_date2`;
+    bind = {
+      clientNum: parseInt(clientNum),
+      chat_date: chat_date,
+      chat_date2: `${chat_date} 23:59`
+    }
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
+
+    if(result.rows.length>0)
+    {
+        res.end(result.rows)
+        console.log(result.rows)
+    }
+   console.log(bind)
+    await connection.release();
+    return res.end(JSON.stringify(info));
+  } catch (err) {
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ip = req.connection.remoteAddress;
+    const connection = await OracleDB.getConnection(dbConfig); 
+    console.error(err);
+    await connection.release();
+    return res.status(500).json({ error: '다이어리 요청 실패 ' });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
