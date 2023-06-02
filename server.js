@@ -1090,7 +1090,7 @@ app.post('/moms/diary/register', async (req, res) => {
     // Oracle 데이터베이스 연결
     const connection = await OracleDB.getConnection(dbConfig);
     
-    log +=`/moms/diary ->[ ${ip} ] 다이어리 작성 ${JSON.stringify(req.body)} ->`
+    log +=`/moms/diary//register ->[ ${ip} ] 다이어리 작성 ${JSON.stringify(req.body)} ->`
     const sql = `INSERT INTO diary(clientNum, diary_date, content) VALUES (:clientNum, :diary_date, :content)`;
     const bindParams = {
       clientNum: clientNum,
@@ -1280,7 +1280,7 @@ app.post('/moms/notice', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/notice ->[ ${ip} ] 공지사항 조회 ->`
-    const sql = `SELECT * FROM notice`;
+    const sql = `SELECT * FROM notice order by noticeNo desc`;
     const result = await connection.execute(sql ,[] , { outFormat: OracleDB.OBJECT });
     if(result.rows.length > 0)
     {
@@ -1312,6 +1312,7 @@ app.post('/moms/notice', async (req, res) => {
 // http://182.219.226.49/moms/notice-info
 app.post('/moms/notice-info', async (req, res) => {
   let log =`` ;
+  const noticeNo= req.body.noticeNo;
   try {
     const now = new Date();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -1323,11 +1324,13 @@ app.post('/moms/notice-info', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log +=`/moms/notice-info ->[ ${ip} ] 공지사항 세부 사항 조회 ->`
-    const sql = `SELECT title, content, content_date FROM notice`;
-    const result = await connection.execute(sql, [], { outFormat: OracleDB.OBJECT });
+    bind={
+      noticeNo:noticeNo
+    }
+    const sql = `SELECT title, content, content_date FROM notice where noticeNo=:noticeNo`;
+    const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
     if(result.rows.length > 0)
     {
-      console.log(result.rows)
       res.status(200).json(result.rows);
       log +=` [성공] < ${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds} >\n`;
     }
@@ -1459,7 +1462,7 @@ app.post('/moms/baby', async (req, res) => {
     const connection = await OracleDB.getConnection(dbConfig);
 
     log += `/moms/baby -> [${ip}] 아기 정보 조회 (clientNum: ${clientNum}) ->`;
-    const sql = `SELECT babyNo, babyName, expectedDate, dadName, momName FROM baby WHERE clientNum = :clientNum`;
+    const sql = `SELECT babyNo, babyName, expectedDate, dadName, momName FROM baby WHERE clientNum = :clientNum order by babyNo`;
     const bind = { clientNum };
     const result = await connection.execute(sql, bind, { outFormat: OracleDB.OBJECT });
 
@@ -2042,7 +2045,6 @@ app.post('/moms/chat/dialogflow', async (req, res) => {
   }else
   {
     //값이 제대로 안들어옴
-    res.end('값이 비어있습니다.');
     const info = {message: '값이 비어있습니다'};
     res.end(JSON.stringify(info));
   } 
